@@ -1,4 +1,5 @@
-use serde::{Serialize, ser::SerializeSeq, Deserialize, de::{Visitor, VariantAccess, DeserializeSeed}};
+use serde::{Serialize, ser::SerializeSeq, Deserialize};
+use std::str::FromStr;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize)]
 #[serde(rename_all = "lowercase")]
@@ -10,106 +11,55 @@ pub enum Color {
 }
 
 impl<'de> Deserialize<'de> for Color {
-    #[inline]
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error> where D: serde::Deserializer<'de> {
-        enum ColorType {
-            Rgb,
-            Hsv360,
-            NoHeaderRgb (RbgColor)
+        #[derive(Debug, Deserialize)]
+        #[serde(rename_all = "lowercase")]
+        enum InnerColor<'a> {
+            #[serde(borrow = "'a")]
+            Rgb ([&'a str; 3]),
+            #[serde(borrow = "'a")]
+            Hsv360 ([&'a str; 3])
         }
 
-        impl<'de> Deserialize<'de> for ColorType {
-            #[inline]
-            fn deserialize<D>(deserializer: D) -> Result<Self, D::Error> where D: serde::Deserializer<'de> {
-                deserializer.deserialize_unit(VariantVisitor);
-                //deserializer.deserialize_identifier(VariantVisitor);
-            }
+        #[derive(Debug, Deserialize)]
+        #[serde(untagged)]
+        enum Inner<'a> {
+            #[serde(borrow = "'a")]
+            Tagged (InnerColor<'a>),
+            #[serde(borrow = "'a")]
+            Untagged ([&'a str; 3]),
         }
-        
-        struct VariantVisitor;
-        impl<'de> Visitor<'de> for VariantVisitor {
-            type Value = ColorType;
 
-            #[inline]
-            fn expecting(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-                write!(f, "nothing, `rgb` or `hsv360`")
+        let todo = serde_bridge::Value::deserialize(deserializer)?;
+        todo!("{todo:?}");
+
+        /*match <Inner as Deserialize>::deserialize(deserializer)? {
+            Inner::Untagged(rgb) | Inner::Tagged(InnerColor::Rgb(rgb)) => {
+                let red = u8::from_str(rgb[0])
+                    .map_err(|e| serde::de::Error::custom(e))?;
+
+                let green = u8::from_str(rgb[1])
+                    .map_err(|e| serde::de::Error::custom(e))?;
+
+                let blue = u8::from_str(rgb[2])
+                    .map_err(|e| serde::de::Error::custom(e))?;
+
+                return Ok(Color::Rgb(RbgColor { red, green, blue }))
+            },
+
+            Inner::Tagged(InnerColor::Hsv360(hsv)) => {
+                let hue = u16::from_str(hsv[0])
+                    .map_err(|e| serde::de::Error::custom(e))?;
+
+                let saturation = u8::from_str(hsv[1])
+                    .map_err(|e| serde::de::Error::custom(e))?;
+
+                let value = u8::from_str(hsv[2])
+                    .map_err(|e| serde::de::Error::custom(e))?;
+
+                return Ok(Color::Hsv360(Hsv360Color { hue, saturation, value }))
             }
-
-            fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error> where A: serde::de::SeqAccess<'de>, {
-                let red: u8 = seq.next_element()?
-                    .ok_or_else(|| <A::Error as serde::de::Error>::missing_field("red"))?;
-                
-                let green: u8 = seq.next_element()?
-                    .ok_or_else(|| <A::Error as serde::de::Error>::missing_field("green"))?;
-
-                let blue: u8 = seq.next_element()?
-                    .ok_or_else(|| <A::Error as serde::de::Error>::missing_field("blue"))?;
-
-                return Ok(ColorType::NoHeaderRgb(RbgColor { red, green, blue }))
-            }
-
-            #[inline]
-            fn visit_str<E>(self, v: &str) -> Result<Self::Value, E> where E: serde::de::Error, {
-                match v {
-                    "rgb" => Ok(ColorType::Rgb),
-                    "hsv360" => Ok(ColorType::Hsv360),
-                    unexp => return Err(E::unknown_variant(unexp, &["rgb", "hsv360"]))
-                }
-            }
-
-            #[inline]
-            fn visit_unit<E>(self) -> Result<Self::Value, E> where E: serde::de::Error, {
-                return Ok(ColorType::Rgb)
-            }
-
-            #[inline]
-            fn visit_none<E>(self) -> Result<Self::Value, E> where E: serde::de::Error, {
-                return self.visit_unit()
-            }
-        }
-        
-        struct LocalVisitor;
-        impl<'de> Visitor<'de> for LocalVisitor {
-            type Value = Color;
-
-            #[inline]
-            fn expecting(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-                write!(f, "an rgb or hsv360 color")
-            }
-
-            fn visit_enum<A>(self, data: A) -> Result<Self::Value, A::Error> where A: serde::de::EnumAccess<'de>, {
-                return match data.variant::<ColorType>()? {
-                    (ColorType::NoHeaderRgb(rgb), _) => Ok(Color::Rgb(rgb)),
-
-                    (ColorType::Rgb, variant) => Result::map(
-                        variant.newtype_variant::<RbgColor>(),
-                        Color::Rgb,
-                    ),
-
-                    (ColorType::Hsv360, variant) => {
-                        #[repr(transparent)]
-                        struct Hsv360 (pub Hsv360Color);
-                        impl<'de> Deserialize<'de> for Hsv360 {
-                            #[inline]
-                            fn deserialize<D>(deserializer: D) -> Result<Self, D::Error> where D: serde::Deserializer<'de> {
-                                return hsv360_serde::deserialize(deserializer).map(Self)
-                            }
-                        }
-
-                        Result::map(
-                            variant.newtype_variant::<Hsv360>(),
-                            |x| Color::Hsv360(x.0),
-                        )
-                    },
-                }
-            }
-        }
-        
-        return deserializer.deserialize_enum(
-            "Color",
-            &["rgb", "hsv360"],
-            LocalVisitor
-        )
+        }*/
     }
 }
 
@@ -184,14 +134,17 @@ mod hsv360_serde {
     }
 }
 
-#[cfg(test)]
+//#[cfg(test)]
 mod tests {
     use std::collections::HashMap;
-    use crate::{RbgColor, Color};
-
+    use elor::Either;
+    use jomini::binary::Rgb;
+    use serde::{Serialize, Deserialize};
+    use crate::{RbgColor, Color, Hsv360Color, Str};
+    
     #[test]
     fn rgb_header () {
-        let color = b"1 = { 255 128 64 }";
+        let color = b"1 = hsv360{ 255 128 64 }";
         let text = jomini::text::de::from_utf8_slice::<HashMap<u32, Color>>(color);
         println!("{text:?}")
     }
