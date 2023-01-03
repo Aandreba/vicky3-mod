@@ -10,49 +10,59 @@ macro_rules! flat_mod {
     };
 }
 
-flat_mod! { country, color }
-
-use std::{path::{PathBuf, Path}};
-
-use itertools::Itertools;
+pub(crate) type Str = Box<str>;
 pub type Result<T> = ::core::result::Result<T, jomini::Error>;
+
+pub mod country;
+pub mod culture;
+
+flat_mod! { color }
+
+use std::{path::{PathBuf, Path}, pin::Pin};
+use country::CountryGame;
+use itertools::Itertools;
 
 #[cfg(debug_assertions)]
 static mut GAME: Option<Game> = None;
 #[cfg(not(debug_assertions))]
 static mut GAME: MaybeUninit<Game> = MaybeUninit::uninit();
 
-#[derive(Debug)]
-pub struct Game {
-    _path: &'static Path,
-    common: PathBuf,
-    country: CountryGame
+pin_project_lite::pin_project! {
+    #[derive(Debug)]
+    pub struct Game {
+        _path: &'static Path,
+        common: PathBuf,
+        #[pin]
+        country: CountryGame<'static>
+    }
 }
 
 impl Game {
     #[inline]
-    pub unsafe fn initialize<T: ?Sized + AsRef<Path>> (path: &'static T) -> Result<&'static Game> {
+    pub unsafe fn initialize<T: ?Sized + AsRef<Path>> (path: &'static T) {
         let path = path.as_ref();
         let common = path.join("common");
-        let country = CountryGame::init(&common)?;
-
+        let country = unsafe { CountryGame::new_uninit(&common).unwrap() };
         let game = Game {
             _path: path,
             common,
             country
         };
 
+        let this;
         unsafe {
             cfg_if::cfg_if! {
                 if #[cfg(debug_assertions)] {
                     GAME = Some(game);
+                    this = Pin::new_unchecked(GAME.as_mut().unwrap_unchecked()).project();
                 } else {
                     GAME.write(game);
+                    this = Pin::new_unchecked(GAME.assume_init_mut()).project();
                 }
             }
         }
 
-        return Ok(Self::get())
+        this.country.initialize_with_common(this.common).unwrap();
     }
 
     #[inline]
@@ -74,7 +84,7 @@ impl Game {
     }
 
     #[inline]
-    pub fn country () -> &'static CountryGame {
+    pub fn country () -> &'static CountryGame<'static> {
         return &Self::get().country
     }
 }

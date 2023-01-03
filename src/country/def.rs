@@ -1,16 +1,27 @@
 use std::path::Path;
 use itertools::Itertools;
 use jomini::JominiDeserialize;
-use crate::{Color, Result, Game};
+use crate::{Color, Result, Game, Str};
+use super::{CountryTier, NamedCountryType};
+
+#[derive(Debug, Clone, PartialEq)]
+#[non_exhaustive]
+pub struct Definition<'a> {
+    pub color: Color,
+    pub country_type: NamedCountryType<'a>,
+    pub tier: CountryTier,
+    pub cultures: Vec<Str>, // todo cultures
+    pub capital: Str // todo states
+}
 
 #[derive(Debug, Clone, PartialEq, JominiDeserialize)]
 #[non_exhaustive]
 pub struct RawDefinition {
     pub color: Color,
-    pub country_type: String,
-    pub tier: String,
-    pub cultures: Vec<String>,
-    pub capital: String
+    pub country_type: Str,
+    pub tier: CountryTier,
+    pub cultures: Vec<Str>,
+    pub capital: Str
 }
 
 impl RawDefinition {

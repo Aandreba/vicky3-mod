@@ -1,10 +1,10 @@
 use std::{path::Path, collections::HashMap};
 use itertools::*;
 use jomini::JominiDeserialize;
-use crate::{Result};
+use crate::{Result, Str};
 
-pub type NamedCountryRank<'a> = (&'a String, &'a CountryRank);
-pub type CountryRanks = HashMap<String, CountryRank>;
+pub type NamedCountryRank<'a> = (&'a Str, &'a CountryRank);
+pub type CountryRanks = HashMap<Str, CountryRank>;
 
 #[derive(Debug, Clone, PartialEq, JominiDeserialize)]
 #[non_exhaustive]
@@ -51,7 +51,7 @@ impl CountryRank {
     }
 
     #[inline]
-    pub fn from_common (common: impl AsRef<Path>) -> Result<impl Iterator<Item = Result<(String, Self)>>> {
+    pub fn from_common (common: impl AsRef<Path>) -> Result<impl Iterator<Item = Result<(Str, Self)>>> {
         let ranks = common.as_ref().join("country_ranks");
         let iter = std::fs::read_dir(ranks)?
             .filter_ok(|x| x.metadata().unwrap().is_file())

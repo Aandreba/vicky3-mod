@@ -2,10 +2,11 @@ use std::{path::Path, collections::HashMap};
 use itertools::Itertools;
 use jomini::JominiDeserialize;
 use serde::Serialize;
-use crate::{NamedCountryRank, Result, CountryRanks, flat_map_ok};
+use crate::{Result, flat_map_ok, Str};
+use super::{NamedCountryRank, CountryRanks};
 
-pub type NamedCountryType<'a> = (&'a String, &'a CountryType<'a>);
-pub type NamedRawCountryType<'a> = (&'a String, &'a RawCountryType);
+pub type NamedCountryType<'a> = (&'a Str, &'a CountryType<'a>);
+pub type NamedRawCountryType<'a> = (&'a Str, &'a RawCountryType);
 
 #[derive(Debug, Clone, PartialEq)]
 #[non_exhaustive]
@@ -38,7 +39,7 @@ impl<'a> CountryType<'a> {
     }
 
     #[inline]
-    pub fn from_common (common: &Path, ranks: &'a CountryRanks) -> Result<impl Iterator<Item = Result<(String, CountryType<'a>)>>> {
+    pub fn from_common (common: &Path, ranks: &'a CountryRanks) -> Result<impl Iterator<Item = Result<(Str, CountryType<'a>)>>> {
         let iter = flat_map_ok(
             RawCountryType::from_common(common)?,
             |(name, raw)| Self::from_raw(raw, ranks).map(|this| (name, this)) 
@@ -59,18 +60,18 @@ pub struct RawCountryType {
     pub has_economy: bool,
     pub has_politics: bool,
     pub can_research: bool,
-    pub default_rank: String
+    pub default_rank: Str
 }
 
 impl RawCountryType {
     #[inline]
-    pub fn from_path (path: impl AsRef<Path>) -> Result<HashMap<String, Self>> {
+    pub fn from_path (path: impl AsRef<Path>) -> Result<HashMap<Str, Self>> {
         let data = std::fs::read_to_string(path)?;
         return jomini::text::de::from_utf8_slice(data.as_bytes())
     }
 
     #[inline]
-    pub fn from_common (common: &Path) -> Result<impl Iterator<Item = Result<(String, Self)>>> {
+    pub fn from_common (common: &Path) -> Result<impl Iterator<Item = Result<(Str, Self)>>> {
         let path = common.join("country_types");
         let iter = std::fs::read_dir(path)?
             .filter_ok(|x| x.metadata().unwrap().is_file())
