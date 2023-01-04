@@ -1,4 +1,4 @@
-use serde::{Serialize, ser::SerializeSeq, Deserialize};
+use serde::{Serialize, ser::SerializeSeq, Deserialize, de::{Visitor}};
 use std::str::FromStr;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize)]
@@ -12,54 +12,57 @@ pub enum Color {
 
 impl<'de> Deserialize<'de> for Color {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error> where D: serde::Deserializer<'de> {
-        #[derive(Debug, Deserialize)]
-        #[serde(rename_all = "lowercase")]
-        enum InnerColor<'a> {
-            #[serde(borrow = "'a")]
-            Rgb ([&'a str; 3]),
-            #[serde(borrow = "'a")]
-            Hsv360 ([&'a str; 3])
+        #[derive(Debug)]
+        enum Field {
+            Rgb,
+            Hsv360
         }
+        
+        struct Discriminamt;
+        impl<'de> Visitor<'de> for Discriminamt {
+            type Value = Color;
 
-        #[derive(Debug, Deserialize)]
-        #[serde(untagged)]
-        enum Inner<'a> {
-            #[serde(borrow = "'a")]
-            Tagged (InnerColor<'a>),
-            #[serde(borrow = "'a")]
-            Untagged ([&'a str; 3]),
-        }
-
-        let todo = serde_bridge::Value::deserialize(deserializer)?;
-        todo!("{todo:?}");
-
-        /*match <Inner as Deserialize>::deserialize(deserializer)? {
-            Inner::Untagged(rgb) | Inner::Tagged(InnerColor::Rgb(rgb)) => {
-                let red = u8::from_str(rgb[0])
-                    .map_err(|e| serde::de::Error::custom(e))?;
-
-                let green = u8::from_str(rgb[1])
-                    .map_err(|e| serde::de::Error::custom(e))?;
-
-                let blue = u8::from_str(rgb[2])
-                    .map_err(|e| serde::de::Error::custom(e))?;
-
-                return Ok(Color::Rgb(RbgColor { red, green, blue }))
-            },
-
-            Inner::Tagged(InnerColor::Hsv360(hsv)) => {
-                let hue = u16::from_str(hsv[0])
-                    .map_err(|e| serde::de::Error::custom(e))?;
-
-                let saturation = u8::from_str(hsv[1])
-                    .map_err(|e| serde::de::Error::custom(e))?;
-
-                let value = u8::from_str(hsv[2])
-                    .map_err(|e| serde::de::Error::custom(e))?;
-
-                return Ok(Color::Hsv360(Hsv360Color { hue, saturation, value }))
+            #[inline]
+            fn expecting(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+                todo!()
             }
-        }*/
+
+            #[inline]
+            fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error> where A: serde::de::SeqAccess<'de>, {                
+                return match seq.next_element::<&str>()? {
+                    Some("rgb") => seq.next_element::<RbgColor>()?
+                        .ok_or_else(|| serde::de::Error::custom("color definition not found"))
+                        .map(Color::Rgb),
+
+                    Some("hsv360") => {
+                        #[derive(Deserialize)]
+                        struct Hsv (#[serde(with = "hsv360_serde")] pub Hsv360Color);
+
+                        let Hsv(color) = seq.next_element::<Hsv>()?
+                            .ok_or_else(|| serde::de::Error::custom("color definition not found"))?;
+
+                        Ok(Color::Hsv360(color))
+                    },
+
+                    Some(other) => match u8::from_str(other) {
+                        Ok(red) => {
+                            let green = seq.next_element::<u8>()?
+                                .ok_or_else(|| serde::de::Error::invalid_length(1, &self))?;
+                            
+                            let blue = seq.next_element::<u8>()?
+                                .ok_or_else(|| serde::de::Error::invalid_length(1, &self))?;
+                        
+                            Ok(Color::Rgb(RbgColor { red, green, blue }))
+                        },
+                        Err(e) => Err(serde::de::Error::custom(e))
+                    },
+
+                    None => Err(serde::de::Error::custom("color not found"))
+                }
+            }
+        }
+
+        return deserializer.deserialize_seq(Discriminamt)
     }
 }
 
@@ -134,18 +137,15 @@ mod hsv360_serde {
     }
 }
 
-//#[cfg(test)]
+#[cfg(test)]
 mod tests {
     use std::collections::HashMap;
-    use elor::Either;
-    use jomini::binary::Rgb;
-    use serde::{Serialize, Deserialize};
-    use crate::{RbgColor, Color, Hsv360Color, Str};
+    use crate::Color;
     
     #[test]
     fn rgb_header () {
-        let color = b"1 = hsv360{ 255 128 64 }";
+        let color = b"1 = rgb{ 255 128 64 } 2 = hsv360{ 255 128 64 } 3 = { 255 128 64 }";
         let text = jomini::text::de::from_utf8_slice::<HashMap<u32, Color>>(color);
-        println!("{text:?}")
+        println!("{text:#?}")
     }
 }

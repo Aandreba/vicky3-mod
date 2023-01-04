@@ -12,13 +12,13 @@ sis = { path = "sis" }
 cfg-if = "1.0.0"
 into_string = "2.0.0"
 itertools = "0.10.5"
-jomini = { path = "jomini" }
 once_cell = "1.17.0"
 serde = { version = "1.0.152", features = ["derive"] }
 pin-project-lite = "0.2.9"
 elor = { version = "1.1.3", features = ["serde", "serialize"] }
 serde-value = "0.7.0"
 serde-bridge = "0.0.3"
+jomini = "0.21.0"
 
 [workspace]
-members = ["sis", "jomini", "jomini/jomini_derive"]
+members = ["sis"]
