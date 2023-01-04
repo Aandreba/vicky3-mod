@@ -8,12 +8,19 @@ use crate::{Color, Result, Str};
 pub struct RawCulture {
     pub color: Color,
     pub religion: Str,
+    #[jomini(default)]
     pub traits: Vec<Str>,
+    #[jomini(default)]
     pub male_common_first_names: Vec<Str>,
+    #[jomini(default)]
     pub female_common_first_names: Vec<Str>,
+    #[jomini(default)]
     pub noble_last_names: Vec<Str>,
+    #[jomini(default)]
     pub common_last_names: Vec<Str>,
+    #[jomini(default)]
     pub male_regal_first_names: Vec<Str>,
+    #[jomini(default)]
     pub female_regal_first_names: Vec<Str>,
     pub graphics: Str,
     pub ethnicities: HashMap<u32, Str>
