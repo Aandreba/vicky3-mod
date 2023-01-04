@@ -1,3 +1,4 @@
+use float_to_int::FloatExt;
 use half::f16;
 use serde::{Serialize, ser::SerializeSeq, Deserialize, de::{Visitor}};
 use std::str::FromStr;
@@ -6,7 +7,8 @@ use std::str::FromStr;
 #[serde(rename_all = "lowercase")]
 #[non_exhaustive]
 pub enum Color {
-    RgbInt (RbgIntColor),
+    RgbInt (RgbIntColor),
+    RgbFloat (RgbFloatColor),
     // todo float rgb 
     #[serde(with = "hsv_serde")]
     Hsv (HsvColor),
@@ -25,10 +27,9 @@ impl<'de> Deserialize<'de> for Color {
                 write!(f, "a color")
             }
 
-            #[inline]
             fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error> where A: serde::de::SeqAccess<'de>, {                                
                 return match seq.next_element::<&str>()? {
-                    Some("rgb") => seq.next_element::<RbgIntColor>()?
+                    Some("rgb") => seq.next_element::<RgbIntColor>()?
                         .ok_or_else(|| serde::de::Error::custom("color definition not found"))
                         .map(Color::RgbInt),
 
@@ -52,36 +53,30 @@ impl<'de> Deserialize<'de> for Color {
                         Ok(Color::Hsv360(color))
                     },
 
-                    Some(other) => match u8::from_str(other) {
+                    Some(other) => match f32::from_str(other) {
                         Ok(red) => {
-                            let green = seq.next_element::<u8>()?
+                            let green = seq.next_element::<f32>()?
                                 .ok_or_else(|| serde::de::Error::invalid_length(1, &self))?;
                             
-                            let blue = seq.next_element::<u8>()?
+                            let blue = seq.next_element::<f32>()?
                                 .ok_or_else(|| serde::de::Error::invalid_length(1, &self))?;
-                        
-                            Ok(Color::RgbInt(RbgIntColor { red, green, blue }))
+
+                            if red.is_integer() && green.is_integer() && blue.is_integer() {
+                                return Ok(Color::RgbInt(RgbIntColor {
+                                    red: red as u8,
+                                    green: green as u8,
+                                    blue: blue as u8
+                                }))
+                            } else {
+                                return Ok(Color::RgbFloat(RgbFloatColor {
+                                    red: f16::from_f32(red),
+                                    green: f16::from_f32(green),
+                                    blue: f16::from_f32(blue)
+                                }))
+                            }
                         },
 
-                        Err(_) => match f16::from_str(other) {
-                            // Guessing it's hsv, could be rgb32
-                            // TODO CHANGE. IT IS MOST DEFINETIVELY RGB
-                            Ok(hue) => {
-                                let saturatiuon = seq.next_element::<f32>()?
-                                .ok_or_else(|| serde::de::Error::invalid_length(1, &self))?;
-                            
-                                let value = seq.next_element::<f32>()?
-                                    .ok_or_else(|| serde::de::Error::invalid_length(1, &self))?;
-                            
-                                Ok(Color::Hsv(HsvColor {
-                                    hue,
-                                    saturation: f16::from_f32(saturatiuon),
-                                    value: f16::from_f32(value)
-                                }))
-                            },
-
-                            Err(e) => Err(serde::de::Error::custom(format!("invalid number '{other}': {e}")))
-                        }
+                        Err(e) => Err(serde::de::Error::custom(format!("invalid number '{other}': {e}")))
                     },
 
                     None => Err(serde::de::Error::custom("color not found"))
@@ -94,13 +89,13 @@ impl<'de> Deserialize<'de> for Color {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct RbgIntColor {
+pub struct RgbIntColor {
     pub red: u8,
     pub green: u8,
     pub blue: u8
 }
 
-impl Serialize for RbgIntColor {
+impl Serialize for RgbIntColor {
     #[inline]
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: serde::Serializer {
         let mut ser = serializer.serialize_seq(Some(3))?;
@@ -111,11 +106,41 @@ impl Serialize for RbgIntColor {
     }
 }
 
-impl<'de> serde::Deserialize<'de> for RbgIntColor {
+impl<'de> serde::Deserialize<'de> for RgbIntColor {
     #[inline]
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error> where D: serde::Deserializer<'de> {
         let [red, green, blue] = <[u8; 3] as serde::Deserialize<'de>>::deserialize(deserializer)?;
         return Ok(Self { red, green, blue })
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct RgbFloatColor {
+    pub red: f16,
+    pub green: f16,
+    pub blue: f16
+}
+
+impl Serialize for RgbFloatColor {
+    #[inline]
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: serde::Serializer {
+        let mut ser = serializer.serialize_seq(Some(3))?;
+        ser.serialize_element(&f32::from(self.red))?;
+        ser.serialize_element(&f32::from(self.green))?;
+        ser.serialize_element(&f32::from(self.blue))?;
+        return ser.end()
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for RgbFloatColor {
+    #[inline]
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error> where D: serde::Deserializer<'de> {
+        let [red, green, blue] = <[f32; 3] as serde::Deserialize<'de>>::deserialize(deserializer)?;
+        return Ok(Self { 
+            red: f16::from_f32(red),
+            green: f16::from_f32(green),
+            blue: f16::from_f32(blue)
+        })
     }
 }
 

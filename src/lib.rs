@@ -90,6 +90,14 @@ impl Game {
 }
 
 #[inline]
+pub(crate) async fn read_to_string (path: impl AsRef<Path>) -> std::io::Result<String> {
+    let mut file = tokio::fs::File::open(path).await?;
+    let mut string = String::new();
+    tokio::io::AsyncReadExt::read_to_string(&mut file, &mut string)?;
+    Ok(string)
+}
+
+#[inline]
 pub(crate) fn flat_map_ok<T, E, I, F, U> (iter: I, f: F) -> impl Iterator<Item = ::core::result::Result<<U as IntoIterator>::Item, E>> where
     I: IntoIterator<Item = ::core::result::Result<T, E>>,
     F: FnMut(T) -> U,

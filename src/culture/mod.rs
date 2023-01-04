@@ -1,7 +1,10 @@
 use std::{collections::HashMap, path::Path};
+use futures::{Stream, StreamExt, TryStreamExt};
 use itertools::Itertools;
 use jomini::JominiDeserialize;
-use crate::{Color, Result, Str};
+use rayon::prelude::{ParallelIterator};
+use tokio_stream::wrappers::ReadDirStream;
+use crate::{Color, Result, Str, read_to_string};
 
 #[derive(Debug, Clone, PartialEq, JominiDeserialize)]
 #[non_exhaustive]
@@ -28,19 +31,23 @@ pub struct RawCulture {
 
 impl RawCulture {
     #[inline]
-    pub fn from_path (path: impl AsRef<Path>) -> Result<HashMap<Str, Self>> {
-        let data = std::fs::read_to_string(path)?;
+    pub async fn from_path (path: impl AsRef<Path>) -> Result<HashMap<Str, Self>> {
+        let data = read_to_string(path).await?;
         return jomini::text::de::from_utf8_slice(data.as_bytes())
     }
 
     #[inline]
-    pub fn from_common (common: &Path) -> Result<impl Iterator<Item = Result<(Str, Self)>>> {
+    pub async fn from_common (common: &Path) -> Result<impl Stream<Item = Result<(Str, Self)>>> {
         let path = common.join("cultures");
-        let iter = std::fs::read_dir(path)?
-            .filter_ok(|x| x.metadata().unwrap().is_file())
-            .map_ok(|x| Self::from_path(x.path()))
-            .flatten()
-            .flatten_ok();
+        let iter = ReadDirStream::new(tokio::fs::read_dir(path).await?)
+            .map_err(<jomini::Error as From<std::io::Error>>::from)
+            .try_filter_map(|x: tokio::fs::DirEntry| async move {
+                if x.metadata().await.map_err(jomini::Error::from)?.is_file() {
+                    return Ok(Some(Self::from_path(x.path()).await?))
+                } else {
+                    return Ok(None)
+                }
+            });
 
         return Ok(iter)
     }
