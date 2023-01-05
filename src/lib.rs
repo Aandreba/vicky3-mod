@@ -15,6 +15,7 @@ pub type Result<T> = ::core::result::Result<T, jomini::Error>;
 
 pub mod country;
 pub mod culture;
+pub(crate) mod utils;
 
 flat_mod! { color }
 
@@ -93,7 +94,7 @@ impl Game {
 pub(crate) async fn read_to_string (path: impl AsRef<Path>) -> std::io::Result<String> {
     let mut file = tokio::fs::File::open(path).await?;
     let mut string = String::new();
-    tokio::io::AsyncReadExt::read_to_string(&mut file, &mut string)?;
+    tokio::io::AsyncReadExt::read_to_string(&mut file, &mut string).await?;
     Ok(string)
 }
 
