@@ -2,7 +2,9 @@ use std::{collections::HashMap, path::Path};
 use futures::{Stream, TryStreamExt};
 use jomini::JominiDeserialize;
 use tokio::task::spawn_blocking;
-use crate::{Color, Result, Str, read_to_string, utils::{ReadDirStream, FlattenOkIter, GetStr, stream_and_then}, religion::{Religion, NamedReligion}};
+use crate::Result;
+use crate::utils::{ReadDirStream, FlattenOkIter, GetStr, stream_and_then};
+use super::{Color, Str, read_to_string, religion::{Religion, NamedReligion}};
 
 pub type CultureRef<'a> = &'a Culture<'a>;
 pub type NamedCulture<'a> = (&'a str, CultureRef<'a>);

@@ -3,7 +3,7 @@ use futures::{TryStreamExt, Stream};
 use jomini::JominiDeserialize;
 use serde::Serialize;
 use tokio::task::spawn_blocking;
-use crate::{Result, Str, read_to_string, utils::{ReadDirStream, FlattenOkIter, GetStr}};
+use crate::{Str, Result, utils::{GetStr, ReadDirStream, FlattenOkIter}, data::read_to_string};
 use super::{NamedCountryRank, CountryRank};
 
 pub type NamedCountryType<'a> = (&'a str, &'a CountryType<'a>);

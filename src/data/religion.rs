@@ -2,35 +2,37 @@ use std::{path::{Path}, collections::HashMap};
 use futures::{Stream, TryStreamExt};
 use jomini::JominiDeserialize;
 use tokio::task::spawn_blocking;
-use crate::{Str, Color, Result, read_to_string, utils::{ReadDirStream, FlattenOkIter}};
+use crate::{Str, Result};
+use crate::utils::{ReadDirStream, FlattenOkIter};
+use super::{Color, read_to_string};
 
 pub type NamedReligion<'a> = (&'a str, &'a Religion);
 
 #[derive(Debug, Clone, PartialEq, JominiDeserialize)]
 #[non_exhaustive]
 pub struct Religion {
-    texture: Box<Path>,
+    pub texture: Box<Path>,
     // religion traits, different from other kinds of traits
     // traits: Vec<Str>,
-    color: Color,
+    pub color: Color,
     // taboos: Vec<Str>
 }
 
 impl Religion {
     #[inline]
-    pub fn from_raw (raw: RawReligion) -> Self {
+    pub fn from_raw (parent: &Path, raw: RawReligion) -> Self {
         return Self {
-            texture: raw.texture,
+            texture: parent.join(raw.texture).into_boxed_path(),
             color: raw.color,
         }
     }
 
     #[inline]
-    pub async fn from_common (common: &Path) -> Result<impl Stream<Item = Result<(Str, Self)>>> {
+    pub async fn from_common<'a> (parent: &'a Path, common: &Path) -> Result<impl 'a + Stream<Item = Result<(Str, Self)>>> {
         return Ok(
             RawReligion::from_common(common)
                 .await?
-                .map_ok(|(name, raw)| (name, Self::from_raw(raw)))
+                .map_ok(|(name, raw)| (name, Self::from_raw(parent, raw)))
         )
     }
 }
@@ -38,12 +40,12 @@ impl Religion {
 #[derive(Debug, Clone, PartialEq, JominiDeserialize)]
 #[non_exhaustive]
 pub struct RawReligion {
-    texture: Box<Path>,
+    pub texture: Box<Path>,
     // religion traits, different from other kinds of traits
-    traits: Box<[Str]>,
-    color: Color,
+    pub traits: Box<[Str]>,
+    pub color: Color,
     #[jomini(default)]
-    taboos: Box<[Str]>
+    pub taboos: Box<[Str]>
 }
 
 impl RawReligion {

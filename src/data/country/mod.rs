@@ -1,7 +1,8 @@
 use std::{collections::HashMap, path::Path, pin::Pin};
 use futures::TryStreamExt;
 use sis::self_referencing;
-use crate::{Result, Str, utils::GetStr, culture::{Culture}};
+use crate::{Result, Str, utils::GetStr};
+use super::culture::{Culture};
 
 flat_mod! { def, ty, rank, tier }
 

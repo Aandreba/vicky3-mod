@@ -2,8 +2,8 @@ use std::{path::Path, collections::HashMap};
 use futures::{Stream, TryStreamExt};
 use jomini::JominiDeserialize;
 use tokio::task::spawn_blocking;
-use crate::{Color, Result, Str, culture::{NamedCulture, Culture}, utils::{GetStr, ReadDirStream, FlattenOkIter, stream_and_then}, try_collect, read_to_string};
-use super::{NamedCountryType, CountryType};
+use super::{NamedCountryType, CountryType, CountryTier};
+use crate::{Result, Str, utils::{GetStr, ReadDirStream, FlattenOkIter, stream_and_then}, data::{Color, culture::{NamedCulture, Culture}, try_collect, read_to_string}};
 
 pub type DefinitionRef<'a> = &'a Definition<'a>;
 pub type NamedDefinition<'a> = (&'a str, DefinitionRef<'a>);
@@ -13,7 +13,7 @@ pub type NamedDefinition<'a> = (&'a str, DefinitionRef<'a>);
 pub struct Definition<'a> {
     pub color: Color,
     pub country_type: NamedCountryType<'a>,
-    //pub tier: CountryTier,
+    pub tier: CountryTier,
     pub cultures: Box<[NamedCulture<'a>]>,
     // pub capital: Str // todo states
     pub is_named_from_capital: bool
@@ -31,9 +31,9 @@ impl<'a> Definition<'a> {
         return Ok(Self {
             cultures: try_collect(cultures)?,
             country_type: tys.try_get_str_value(&raw.country_type)?,
+            tier: raw.tier,
             color: raw.color,
             is_named_from_capital: raw.is_named_from_capital
-            //tier: raw.tier,
         })
     }
 
@@ -57,7 +57,7 @@ impl<'a> Definition<'a> {
 pub struct RawDefinition {
     pub color: Color,
     pub country_type: Str,
-    pub tier: Str,
+    pub tier: CountryTier,
     pub cultures: Box<[Str]>,
     pub capital: Option<Str>,
     #[jomini(default)]

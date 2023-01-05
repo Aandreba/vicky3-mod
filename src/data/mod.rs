@@ -10,13 +10,9 @@ macro_rules! flat_mod {
     };
 }
 
-pub(crate) type Str = Box<str>;
-pub type Result<T> = ::core::result::Result<T, jomini::Error>;
-
 pub mod country;
 pub mod culture;
 pub mod religion;
-pub(crate) mod utils;
 
 flat_mod! { color }
 
@@ -27,7 +23,9 @@ use futures::{Stream, TryStreamExt, TryFutureExt};
 use itertools::Itertools;
 use religion::Religion;
 use sis::self_referencing;
-use utils::FlattenOkIter;
+use crate::utils::FlattenOkIter;
+
+use crate::Str;
 
 #[cfg(debug_assertions)]
 static mut GAME: Option<Game> = None;
@@ -51,7 +49,7 @@ impl Game {
 
         let (countries, religions) = futures::try_join! {
             CountryGame::new_uninit(&common),
-            TryFutureExt::and_then(Religion::from_common(&common), TryStreamExt::try_collect::<HashMap<_, _>>)
+            TryFutureExt::and_then(Religion::from_common(&path, &common), TryStreamExt::try_collect::<HashMap<_, _>>)
         }.unwrap();
 
         let game = GameInner::_new_uninit(
@@ -104,6 +102,11 @@ impl Game {
     }
 
     #[inline]
+    pub fn path () -> &'static Path {
+        &Self::get().inner.path
+    }
+    
+    #[inline]
     pub fn common () -> &'static Path {
         &Self::get().inner.common
     }
@@ -122,7 +125,7 @@ impl Game {
 #[self_referencing]
 #[derive(Debug)]
 struct GameInner {
-    _path: &'this Path,
+    path: &'this Path,
     common: PathBuf,
     religions: HashMap<Str, Religion>,
     countries: CountryGame<'this>,

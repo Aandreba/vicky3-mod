@@ -171,7 +171,7 @@ impl<'de> Deserialize<'de> for HsvIntColor {
 
 mod hsv360_serde {
     use serde::ser::SerializeSeq;
-    use crate::HsvIntColor;
+    use super::HsvIntColor;
 
     #[inline]
     pub(super) fn serialize<S>(this: &HsvIntColor, serializer: S) -> Result<S::Ok, S::Error> where S: serde::Serializer {        
@@ -217,7 +217,7 @@ impl<'de> Deserialize<'de> for HsvColor {
 mod hsv_serde {
     use half::f16;
     use serde::ser::SerializeSeq;
-    use crate::HsvColor;
+    use super::HsvColor;
 
     #[inline]
     pub(super) fn serialize<S>(this: &HsvColor, serializer: S) -> Result<S::Ok, S::Error> where S: serde::Serializer {        
@@ -242,7 +242,7 @@ mod hsv_serde {
 #[cfg(test)]
 mod tests {
     use std::collections::HashMap;
-    use crate::Color;
+    use super::Color;
     
     #[test]
     fn rgb_header () {
