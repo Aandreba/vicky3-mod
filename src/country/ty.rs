@@ -3,11 +3,10 @@ use futures::{TryStreamExt, Stream};
 use jomini::JominiDeserialize;
 use serde::Serialize;
 use tokio::task::spawn_blocking;
-use crate::{Result, Str, read_to_string, utils::{ReadDirStream, FlattenOkIter}};
-use super::{NamedCountryRank, CountryRanks};
+use crate::{Result, Str, read_to_string, utils::{ReadDirStream, FlattenOkIter, GetStr}};
+use super::{NamedCountryRank, CountryRank};
 
-pub type NamedCountryType<'a> = (&'a Str, &'a CountryType<'a>);
-pub type NamedRawCountryType<'a> = (&'a Str, &'a RawCountryType);
+pub type NamedCountryType<'a> = (&'a str, &'a CountryType<'a>);
 
 #[derive(Debug, Clone, PartialEq)]
 #[non_exhaustive]
@@ -25,9 +24,9 @@ pub struct CountryType<'a> {
 
 impl<'a> CountryType<'a> {
     #[inline]
-    pub fn from_raw (raw: RawCountryType, ranks: &'a CountryRanks) -> Self {
+    pub fn from_raw (raw: RawCountryType, ranks: &'a HashMap<Str, CountryRank>) -> Self {
         return Self {
-            default_rank: ranks.get_key_value(&raw.default_rank),
+            default_rank: ranks.get_str_value(&raw.default_rank),
             is_colonizable: raw.is_colonizable,
             is_unrecognized: raw.is_unrecognized,
             uses_prestige: raw.uses_prestige,
@@ -40,7 +39,7 @@ impl<'a> CountryType<'a> {
     }
 
     #[inline]
-    pub async fn from_common (common: &Path, ranks: &'a CountryRanks) -> Result<impl Stream<Item = Result<(Str, CountryType<'a>)>>> {
+    pub async fn from_common (common: &Path, ranks: &'a HashMap<Str, CountryRank>) -> Result<impl Stream<Item = Result<(Str, CountryType<'a>)>>> {
         let iter = RawCountryType::from_common(common)
             .await?
             .map_ok(|(name, raw)| (name, Self::from_raw(raw, ranks)));

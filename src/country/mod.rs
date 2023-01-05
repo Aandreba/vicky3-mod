@@ -1,7 +1,7 @@
 use std::{collections::HashMap, path::Path, pin::Pin};
 use futures::TryStreamExt;
 use sis::self_referencing;
-use crate::{Result, Str};
+use crate::{Result, Str, utils::GetStr, culture::{Culture}};
 
 flat_mod! { def, ty, rank, tier }
 
@@ -10,7 +10,9 @@ flat_mod! { def, ty, rank, tier }
 pub struct CountryGame {
     ranks: HashMap<Str, CountryRank>,
     #[borrows(ranks)]
-    pub ty: HashMap<Str, CountryType<'this>>
+    pub ty: HashMap<Str, CountryType<'this>>,
+    #[borrows(ty)]
+    pub defs: HashMap<Str, Definition<'this>>
 }
 
 impl<'this> CountryGame<'this> {
@@ -23,13 +25,24 @@ impl<'this> CountryGame<'this> {
     }
 
     #[inline]
-    pub(crate) async unsafe fn initialize_with_common (self: Pin<&'this mut Self>, common: &Path) -> Result<()> {
+    pub(crate) async unsafe fn initialize_with_common (
+        self: Pin<&'this mut Self>,
+        common: &Path,
+        cultures: &'this HashMap<Str, Culture<'this>>
+    ) -> Result<()> {
         return self._try_initialize_async(
             |ranks| async move {
                 CountryType::from_common(common, ranks)
                 .await?
                 .try_collect::<HashMap<_, _>>()
                 .await
+            },
+            
+            |tys| async move {
+                Definition::from_common(common, tys, cultures)
+                    .await?
+                    .try_collect::<HashMap<_, _>>()
+                    .await
             }
         ).await
     }
@@ -41,6 +54,6 @@ impl<'this> CountryGame<'this> {
 
     #[inline]
     pub fn rank (&self, name: &str) -> Option<NamedCountryRank<'_>> {
-        return self.ranks.get_key_value(name)
+        return self.ranks.get_str_value(name)
     }
 }

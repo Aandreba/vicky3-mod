@@ -1,7 +1,35 @@
-use std::task::Poll;
-
+use std::{task::Poll, collections::HashMap};
 use futures::{Stream, Future, StreamExt, FutureExt, TryStream, TryStreamExt, TryFuture, TryFutureExt};
+use serde::de::Error;
 use tokio::fs::{ReadDir, DirEntry};
+use sealed::Sealed;
+use crate::{Str};
+
+mod sealed {
+    pub trait Sealed {}
+}
+
+pub trait GetStr<T>: Sealed {
+    fn get_str_value<'a> (&'a self, t: &str) -> Option<(&'a str, &'a T)>;
+
+    #[inline]
+    fn try_get_str_value<'a> (&'a self, t: &str) -> crate::Result<(&'a str, &'a T)> {
+        self.get_str_value(t)
+            .ok_or_else(|| jomini::DeserializeError::custom(format!("entry with name '{t}' not found")).into())
+    }
+}
+
+impl<T> GetStr<T> for HashMap<Str, T> {
+    #[inline]
+    fn get_str_value<'a> (&'a self, k: &str) -> Option<(&'a str, &'a T)> {
+        match self.get_key_value(k) {
+            Some((k, v)) => Some((k, v)),
+            None => None
+        }
+    }
+}
+
+impl<T> Sealed for HashMap<Str, T> {}
 
 #[derive(Debug)]
 #[repr(transparent)]
@@ -34,7 +62,7 @@ pin_project_lite::pin_project! {
     pub struct FlattenOkIter<St: TryStream> where St::Ok: IntoIterator {
         #[pin]
         stream: St,
-        iters: Vec<<St::Ok as IntoIterator>::IntoIter>
+        iter: Option<<St::Ok as IntoIterator>::IntoIter>
     }
 }
 
@@ -42,11 +70,8 @@ impl<St: TryStream> FlattenOkIter<St> where St::Ok: IntoIterator {
     #[inline]
     pub fn new (stream: St) -> Self {
         return Self {
-            iters: Vec::with_capacity(match stream.size_hint() {
-                (_, Some(x)) => x,
-                (x, _) => x
-            }),
-            stream
+            stream,
+            iter: None
         }
     }
 }
@@ -61,7 +86,7 @@ impl<St: TryStream> Stream for FlattenOkIter<St> where St::Ok: IntoIterator {
             Poll::Ready(Some(Ok(iter))) => {
                 let mut iter = iter.into_iter();
                 if let Some(value) = iter.next() {
-                    this.iters.push(iter);
+                    *this.iter = Some(iter);
                     return Poll::Ready(Some(Ok(value)))
                 }
                 Poll::Pending
@@ -71,11 +96,10 @@ impl<St: TryStream> Stream for FlattenOkIter<St> where St::Ok: IntoIterator {
             Poll::Pending => Poll::Pending
         };
 
-        while let Some(iter) = this.iters.first_mut() {
+        if let Some(iter) = this.iter {
             if let Some(value) = iter.next() {
                 return Poll::Ready(Some(Ok(value)))
             }
-            this.iters.swap_remove(0);
         }
 
         return poll
@@ -107,5 +131,16 @@ pub fn try_reduce<St, F, Fut> (st: St, mut f: F) -> impl TryFuture<Ok = Option<S
             Some(lhs) => futures::future::Either::Left(f(lhs, rhs).map_ok(Some)),
             None => futures::future::Either::Right(futures::future::ready(Ok(Some(rhs))))
         }
+    })
+}
+
+#[inline]
+pub fn stream_and_then<St, F, T, E, U> (st: St, mut f: F) -> impl Stream<Item = Result<U, E>> where
+    St: Stream<Item = Result<T, E>>,
+    F: FnMut(T) -> Result<U, E>
+{
+    return st.map(move |x| match x {
+        Ok(t) => f(t),
+        Err(e) => Err(e),
     })
 }

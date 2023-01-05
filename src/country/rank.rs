@@ -4,8 +4,7 @@ use jomini::JominiDeserialize;
 use tokio::task::spawn_blocking;
 use crate::{Result, Str, read_to_string, utils::{ReadDirStream, FlattenOkIter}};
 
-pub type NamedCountryRank<'a> = (&'a Str, &'a CountryRank);
-pub type CountryRanks = HashMap<Str, CountryRank>;
+pub type NamedCountryRank<'a> = (&'a str, &'a CountryRank);
 
 #[derive(Debug, Clone, PartialEq, JominiDeserialize)]
 #[non_exhaustive]
@@ -46,9 +45,9 @@ pub struct CountryRank {
 
 impl CountryRank {
     #[inline]
-    pub async fn from_path (path: impl AsRef<Path>) -> Result<CountryRanks> {
+    pub async fn from_path (path: impl AsRef<Path>) -> Result<HashMap<Str, Self>> {
         let data = read_to_string(path).await?;
-        return spawn_blocking(move || jomini::text::de::from_utf8_slice::<CountryRanks>(data.as_bytes())).await.unwrap();
+        return spawn_blocking(move || jomini::text::de::from_utf8_slice(data.as_bytes())).await.unwrap();
     }
 
     #[inline]
