@@ -1,8 +1,9 @@
 use std::{path::Path, collections::HashMap};
-use itertools::Itertools;
+use futures::{TryStreamExt, Stream};
 use jomini::JominiDeserialize;
 use serde::Serialize;
-use crate::{Result, flat_map_ok, Str};
+use tokio::task::spawn_blocking;
+use crate::{Result, Str, read_to_string, utils::{ReadDirStream, FlattenOkIter}};
 use super::{NamedCountryRank, CountryRanks};
 
 pub type NamedCountryType<'a> = (&'a Str, &'a CountryType<'a>);
@@ -24,8 +25,8 @@ pub struct CountryType<'a> {
 
 impl<'a> CountryType<'a> {
     #[inline]
-    pub fn from_raw (raw: RawCountryType, ranks: &'a CountryRanks) -> Result<Self> {
-        return Ok(Self {
+    pub fn from_raw (raw: RawCountryType, ranks: &'a CountryRanks) -> Self {
+        return Self {
             default_rank: ranks.get_key_value(&raw.default_rank),
             is_colonizable: raw.is_colonizable,
             is_unrecognized: raw.is_unrecognized,
@@ -35,15 +36,14 @@ impl<'a> CountryType<'a> {
             has_economy: raw.has_economy,
             has_politics: raw.has_politics,
             can_research: raw.can_research,
-        })
+        }
     }
 
     #[inline]
-    pub fn from_common (common: &Path, ranks: &'a CountryRanks) -> Result<impl Iterator<Item = Result<(Str, CountryType<'a>)>>> {
-        let iter = flat_map_ok(
-            RawCountryType::from_common(common)?,
-            |(name, raw)| Self::from_raw(raw, ranks).map(|this| (name, this)) 
-        );
+    pub async fn from_common (common: &Path, ranks: &'a CountryRanks) -> Result<impl Stream<Item = Result<(Str, CountryType<'a>)>>> {
+        let iter = RawCountryType::from_common(common)
+            .await?
+            .map_ok(|(name, raw)| (name, Self::from_raw(raw, ranks)));
 
         return Ok(iter)
     }
@@ -65,21 +65,25 @@ pub struct RawCountryType {
 
 impl RawCountryType {
     #[inline]
-    pub fn from_path (path: impl AsRef<Path>) -> Result<HashMap<Str, Self>> {
-        let data = std::fs::read_to_string(path)?;
-        return jomini::text::de::from_utf8_slice(data.as_bytes())
+    pub async fn from_path (path: impl AsRef<Path>) -> Result<HashMap<Str, Self>> {
+        let data = read_to_string(path).await?;
+        return spawn_blocking(move || jomini::text::de::from_utf8_slice(data.as_bytes())).await.unwrap()
     }
 
     #[inline]
-    pub fn from_common (common: &Path) -> Result<impl Iterator<Item = Result<(Str, Self)>>> {
+    pub async fn from_common (common: &Path) -> Result<impl Stream<Item = Result<(Str, Self)>>> {
         let path = common.join("country_types");
-        let iter = std::fs::read_dir(path)?
-            .filter_ok(|x| x.metadata().unwrap().is_file())
-            .map_ok(|x| Self::from_path(x.path()))
-            .flatten()
-            .flatten_ok();
+        let iter = ReadDirStream::new(tokio::fs::read_dir(path).await?)
+            .map_err(<jomini::Error as From<std::io::Error>>::from)
+            .try_filter_map(|x: tokio::fs::DirEntry| async move {
+                if x.metadata().await.map_err(jomini::Error::from)?.is_file() {
+                    return Ok(Some(Self::from_path(x.path()).await?))
+                } else {
+                    return Ok(None)
+                }
+            });
 
-        return Ok(iter)
+        return Ok(FlattenOkIter::new(iter))
     }
 }
 

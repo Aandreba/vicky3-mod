@@ -21,7 +21,9 @@ flat_mod! { color }
 
 use std::{path::{PathBuf, Path}, pin::Pin};
 use country::CountryGame;
+use futures::{Stream, TryStreamExt};
 use itertools::Itertools;
+use utils::FlattenOkIter;
 
 #[cfg(debug_assertions)]
 static mut GAME: Option<Game> = None;
@@ -40,10 +42,10 @@ pin_project_lite::pin_project! {
 
 impl Game {
     #[inline]
-    pub unsafe fn initialize<T: ?Sized + AsRef<Path>> (path: &'static T) {
+    pub async unsafe fn initialize<T: ?Sized + AsRef<Path>> (path: &'static T) {
         let path = path.as_ref();
         let common = path.join("common");
-        let country = unsafe { CountryGame::new_uninit(&common).unwrap() };
+        let country = unsafe { CountryGame::new_uninit(&common).await.unwrap() };
         let game = Game {
             _path: path,
             common,
@@ -63,7 +65,7 @@ impl Game {
             }
         }
 
-        this.country.initialize_with_common(this.common).unwrap();
+        this.country.initialize_with_common(this.common).await.unwrap();
     }
 
     #[inline]
@@ -105,6 +107,16 @@ pub(crate) fn flat_map_ok<T, E, I, F, U> (iter: I, f: F) -> impl Iterator<Item =
     U: IntoIterator
 {
     return itertools::Itertools::map_ok(iter.into_iter(), f).flatten_ok();
+}
+
+#[inline]
+pub(crate) fn stream_flat_map_ok<T, E, S, F, U> (stream: S, f: F) -> impl Stream<Item = ::core::result::Result<<U as IntoIterator>::Item, E>> where
+    S: Stream<Item = ::core::result::Result<T, E>>,
+    F: FnMut(T) -> U,
+    U: IntoIterator
+{
+    return FlattenOkIter::new(stream.map_ok(f))
+    //return itertools::Itertools::map_ok(iter.into_iter(), f).flatten_ok();
 }
 
 #[cfg(feature = "nightly")]

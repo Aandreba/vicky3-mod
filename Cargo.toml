@@ -26,4 +26,4 @@ tokio = { version = "1.23.0", features = ["full"] }
 futures = "0.3.25"
 
 [workspace]
-members = ["sis"]
+members = ["sis", "sis/sis_proc"]

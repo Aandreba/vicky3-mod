@@ -1,7 +1,8 @@
 use std::{path::Path, collections::HashMap};
-use itertools::*;
+use futures::{Stream, TryStreamExt};
 use jomini::JominiDeserialize;
-use crate::{Result, Str};
+use tokio::task::spawn_blocking;
+use crate::{Result, Str, read_to_string, utils::{ReadDirStream, FlattenOkIter}};
 
 pub type NamedCountryRank<'a> = (&'a Str, &'a CountryRank);
 pub type CountryRanks = HashMap<Str, CountryRank>;
@@ -45,21 +46,25 @@ pub struct CountryRank {
 
 impl CountryRank {
     #[inline]
-    pub fn from_path (path: impl AsRef<Path>) -> Result<CountryRanks> {
-        let data = std::fs::read_to_string(path)?;
-        return jomini::text::de::from_utf8_slice::<CountryRanks>(data.as_bytes());
+    pub async fn from_path (path: impl AsRef<Path>) -> Result<CountryRanks> {
+        let data = read_to_string(path).await?;
+        return spawn_blocking(move || jomini::text::de::from_utf8_slice::<CountryRanks>(data.as_bytes())).await.unwrap();
     }
 
     #[inline]
-    pub fn from_common (common: impl AsRef<Path>) -> Result<impl Iterator<Item = Result<(Str, Self)>>> {
+    pub async fn from_common (common: impl AsRef<Path>) -> Result<impl Stream<Item = Result<(Str, Self)>>> {
         let ranks = common.as_ref().join("country_ranks");
-        let iter = std::fs::read_dir(ranks)?
-            .filter_ok(|x| x.metadata().unwrap().is_file())
-            .map_ok(|x| Self::from_path(x.path()))
-            .flatten()
-            .flatten_ok();
+        let iter = ReadDirStream::new(tokio::fs::read_dir(ranks).await?)
+            .map_err(<jomini::Error as From<std::io::Error>>::from)
+            .try_filter_map(|x: tokio::fs::DirEntry| async move {
+                if x.metadata().await.map_err(jomini::Error::from)?.is_file() {
+                    return Ok(Some(Self::from_path(x.path()).await?))
+                } else {
+                    return Ok(None)
+                }
+            });
 
-        return Ok(iter)
+        return Ok(FlattenOkIter::new(iter))
     }
 }
 

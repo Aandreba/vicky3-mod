@@ -1,6 +1,7 @@
 use std::{collections::HashMap, path::Path, pin::Pin};
+use futures::TryStreamExt;
 use sis::self_referencing;
-use crate::{Result, try_collect, Str};
+use crate::{Result, Str};
 
 flat_mod! { def, ty, rank, tier }
 
@@ -14,16 +15,23 @@ pub struct CountryGame {
 
 impl<'this> CountryGame<'this> {
     #[inline]
-    pub unsafe fn new_uninit (common: &Path) -> Result<Self> {
-        let ranks = try_collect(CountryRank::from_common(common)?)?;
+    pub async unsafe fn new_uninit (common: &Path) -> Result<CountryGame<'this>> {
+        let ranks = CountryRank::from_common(common).await?
+            .try_collect::<HashMap<_, _>>()
+            .await?;
         return Ok(Self::_new_uninit(ranks))
     }
 
     #[inline]
-    pub(crate) unsafe fn initialize_with_common (self: Pin<&'this mut Self>, common: &Path) -> Result<()> {
-        return self._try_initialize(
-            |ranks| try_collect(CountryType::from_common(common, ranks)?)
-        )
+    pub(crate) async unsafe fn initialize_with_common (self: Pin<&'this mut Self>, common: &Path) -> Result<()> {
+        return self._try_initialize_async(
+            |ranks| async move {
+                CountryType::from_common(common, ranks)
+                .await?
+                .try_collect::<HashMap<_, _>>()
+                .await
+            }
+        ).await
     }
 
     #[inline]
