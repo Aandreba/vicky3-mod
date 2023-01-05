@@ -3,16 +3,20 @@ use futures::{Stream, TryStreamExt};
 use jomini::JominiDeserialize;
 use tokio::task::spawn_blocking;
 use crate::{Color, Result, Str, culture::{NamedCulture, Culture}, utils::{GetStr, ReadDirStream, FlattenOkIter, stream_and_then}, try_collect, read_to_string};
-use super::{CountryTier, NamedCountryType, CountryType};
+use super::{NamedCountryType, CountryType};
+
+pub type DefinitionRef<'a> = &'a Definition<'a>;
+pub type NamedDefinition<'a> = (&'a str, DefinitionRef<'a>);
 
 #[derive(Debug, Clone, PartialEq)]
 #[non_exhaustive]
 pub struct Definition<'a> {
     pub color: Color,
     pub country_type: NamedCountryType<'a>,
-    pub tier: CountryTier,
-    pub cultures: Vec<NamedCulture<'a>>,
+    //pub tier: CountryTier,
+    pub cultures: Box<[NamedCulture<'a>]>,
     // pub capital: Str // todo states
+    pub is_named_from_capital: bool
 }
 
 impl<'a> Definition<'a> {
@@ -28,7 +32,8 @@ impl<'a> Definition<'a> {
             cultures: try_collect(cultures)?,
             country_type: tys.try_get_str_value(&raw.country_type)?,
             color: raw.color,
-            tier: raw.tier,
+            is_named_from_capital: raw.is_named_from_capital
+            //tier: raw.tier,
         })
     }
 
@@ -52,9 +57,11 @@ impl<'a> Definition<'a> {
 pub struct RawDefinition {
     pub color: Color,
     pub country_type: Str,
-    pub tier: CountryTier,
-    pub cultures: Vec<Str>,
-    pub capital: Str
+    pub tier: Str,
+    pub cultures: Box<[Str]>,
+    pub capital: Option<Str>,
+    #[jomini(default)]
+    pub is_named_from_capital: bool
 }
 
 impl RawDefinition {

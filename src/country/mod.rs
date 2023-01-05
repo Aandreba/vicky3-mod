@@ -12,7 +12,7 @@ pub struct CountryGame {
     #[borrows(ranks)]
     pub ty: HashMap<Str, CountryType<'this>>,
     #[borrows(ty)]
-    pub defs: HashMap<Str, Definition<'this>>
+    pub definitions: HashMap<Str, Definition<'this>>
 }
 
 impl<'this> CountryGame<'this> {
@@ -53,7 +53,12 @@ impl<'this> CountryGame<'this> {
     }
 
     #[inline]
-    pub fn rank (&self, name: &str) -> Option<NamedCountryRank<'_>> {
+    pub fn definition<'a> (&'a self, name: &str) -> Option<NamedDefinition<'a>> {
+        return self.definitions().get_str_value(name)
+    }
+    
+    #[inline]
+    pub fn rank<'a> (&'a self, name: &str) -> Option<NamedCountryRank<'a>> {
         return self.ranks.get_str_value(name)
     }
 }

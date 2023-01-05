@@ -20,7 +20,7 @@ pub(crate) mod utils;
 
 flat_mod! { color }
 
-use std::{path::{Path}, pin::Pin, collections::HashMap, future::ready, marker::PhantomData};
+use std::{path::{Path, PathBuf}, pin::Pin, collections::HashMap, marker::PhantomData};
 use country::CountryGame;
 use culture::Culture;
 use futures::{Stream, TryStreamExt, TryFutureExt};
@@ -47,7 +47,7 @@ impl Game {
     #[inline]
     pub async unsafe fn initialize<T: ?Sized + AsRef<Path>> (path: &'static T) {
         let path = path.as_ref();
-        let common = Box::leak(path.join("common").into_boxed_path()) as &'static Path;
+        let common = path.join("common");
 
         let (countries, religions) = futures::try_join! {
             CountryGame::new_uninit(&common),
@@ -57,7 +57,8 @@ impl Game {
         let game = GameInner::_new_uninit(
             path,
             common,
-            religions
+            religions,
+            countries
         );
 
         let this;
@@ -65,26 +66,28 @@ impl Game {
             cfg_if::cfg_if! {
                 if #[cfg(debug_assertions)] {
                     GAME = Some(Game { inner: game });
-                    this = Pin::new_unchecked(GAME.as_mut().unwrap_unchecked()).project();
+                    this = Pin::static_mut(GAME.as_mut().unwrap_unchecked()).project();
                 } else {
-                    GAME.write(Game { inner: game });
-                    this = Pin::new_unchecked(GAME.assume_init_mut()).project();
+                    this = Pin::static_mut(
+                        GAME.write(Game { inner: game })
+                    ).project();
                 }
             }
         }
 
         this.inner._try_initialize_async(
-            |religions| async move {
-                return Culture::from_common(common, religions)
+            |common, religions| async move {
+                return Culture::from_common(common as &Path, religions)
                     .await?
                     .try_collect()
                     .await
             },
 
-            |_| ready(Ok(countries))
+            |countries: Pin<&'static mut CountryGame>, common, cultures| async move {
+                unsafe { countries.initialize_with_common(common as &Path, cultures).await? };
+                return Ok(PhantomData)
+            }
         ).await.unwrap();
-
-        //this.0.country.initialize_with_common(this.common).await.unwrap();
     }
 
     #[inline]
@@ -106,8 +109,8 @@ impl Game {
     }
 
     #[inline]
-    pub fn country () -> &'static CountryGame<'static> {
-        return Self::get().inner.country()
+    pub fn countries () -> &'static CountryGame<'static> {
+        return &Self::get().inner.countries
     }
 
     #[inline]
@@ -120,12 +123,12 @@ impl Game {
 #[derive(Debug)]
 struct GameInner {
     _path: &'this Path,
-    common: &'this Path,
+    common: PathBuf,
     religions: HashMap<Str, Religion>,
     countries: CountryGame<'this>,
-    #[borrows(religions)]
+    #[borrows(common, religions)]
     cultures: HashMap<Str, Culture<'this>>,
-    #[borrows(mut countries, cultures)]
+    #[borrows(mut countries, common, cultures)]
     _country_init: PhantomData<&'this mut ()>
 }
 

@@ -1,4 +1,4 @@
-use std::{path::{PathBuf, Path}, collections::HashMap};
+use std::{path::{Path}, collections::HashMap};
 use futures::{Stream, TryStreamExt};
 use jomini::JominiDeserialize;
 use tokio::task::spawn_blocking;
@@ -9,7 +9,7 @@ pub type NamedReligion<'a> = (&'a str, &'a Religion);
 #[derive(Debug, Clone, PartialEq, JominiDeserialize)]
 #[non_exhaustive]
 pub struct Religion {
-    texture: PathBuf,
+    texture: Box<Path>,
     // religion traits, different from other kinds of traits
     // traits: Vec<Str>,
     color: Color,
@@ -38,12 +38,12 @@ impl Religion {
 #[derive(Debug, Clone, PartialEq, JominiDeserialize)]
 #[non_exhaustive]
 pub struct RawReligion {
-    texture: PathBuf,
+    texture: Box<Path>,
     // religion traits, different from other kinds of traits
-    traits: Vec<Str>,
+    traits: Box<[Str]>,
     color: Color,
     #[jomini(default)]
-    taboos: Vec<Str>
+    taboos: Box<[Str]>
 }
 
 impl RawReligion {

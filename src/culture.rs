@@ -13,12 +13,12 @@ pub struct Culture<'a> {
     pub color: Color,
     pub religion: NamedReligion<'a>,
     // pub traits: Vec<Str>,
-    pub male_common_first_names: Vec<Str>,
-    pub female_common_first_names: Vec<Str>,
-    pub noble_last_names: Vec<Str>,
-    pub common_last_names: Vec<Str>,
-    pub male_regal_first_names: Vec<Str>,
-    pub female_regal_first_names: Vec<Str>,
+    pub male_common_first_names: Box<[Str]>,
+    pub female_common_first_names: Box<[Str]>,
+    pub noble_last_names: Box<[Str]>,
+    pub common_last_names: Box<[Str]>,
+    pub male_regal_first_names: Box<[Str]>,
+    pub female_regal_first_names: Box<[Str]>,
     // pub graphics: Str,
     // pub ethnicities: HashMap<u32, Str>
 }
@@ -54,19 +54,19 @@ pub struct RawCulture {
     pub color: Color,
     pub religion: Str,
     #[jomini(default)]
-    pub traits: Vec<Str>,
+    pub traits: Box<[Str]>,
     #[jomini(default)]
-    pub male_common_first_names: Vec<Str>,
+    pub male_common_first_names: Box<[Str]>,
     #[jomini(default)]
-    pub female_common_first_names: Vec<Str>,
+    pub female_common_first_names: Box<[Str]>,
     #[jomini(default)]
-    pub noble_last_names: Vec<Str>,
+    pub noble_last_names: Box<[Str]>,
     #[jomini(default)]
-    pub common_last_names: Vec<Str>,
+    pub common_last_names: Box<[Str]>,
     #[jomini(default)]
-    pub male_regal_first_names: Vec<Str>,
+    pub male_regal_first_names: Box<[Str]>,
     #[jomini(default)]
-    pub female_regal_first_names: Vec<Str>,
+    pub female_regal_first_names: Box<[Str]>,
     pub graphics: Str,
     pub ethnicities: HashMap<u32, Str>
 }
