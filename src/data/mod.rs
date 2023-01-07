@@ -1,4 +1,3 @@
-#![feature(fs_try_exists)]
 #![cfg_attr(feature = "nightly", feature(iterator_try_collect))]
 
 macro_rules! flat_mod {

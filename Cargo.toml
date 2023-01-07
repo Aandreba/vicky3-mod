@@ -24,7 +24,9 @@ float_to_int = { version = "0.1.0", features = ["half"] }
 rayon = "1.6.1"
 tokio = { version = "1.23.0", features = ["full"] }
 futures = "0.3.25"
-egui = "0.20.1"
+eframe = "0.20.1"
+anyhow = "1.0.68"
+rfd = "0.10.0"
 
 [workspace]
 members = ["sis", "sis/sis_proc"]
