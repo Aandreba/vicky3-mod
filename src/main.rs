@@ -6,7 +6,7 @@ pub(crate) mod utils;
 pub(crate) type Str = Box<str>;
 pub type Result<T> = ::core::result::Result<T, jomini::Error>;
 
-use std::mem::MaybeUninit;
+// /Users/aandreba/Library/Application Aupport/Steam
 
 use eframe::*;
 use home::Home;
@@ -62,8 +62,7 @@ pub fn runtime () -> &'static Runtime {
 fn main() -> anyhow::Result<()> {
     let builder = tokio::runtime::Builder::new_multi_thread()
         .enable_all()
-        .build()
-        .unwrap();
+        .build()?;
 
     unsafe { init_runtime(builder) }
 
@@ -73,7 +72,7 @@ fn main() -> anyhow::Result<()> {
     };
 
     let _ = eframe::run_native(
-        "My egui App",
+        "My Vicky3 Mod",
         options,
         Box::new(|_cc| Box::new(Main::default())),
     );

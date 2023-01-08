@@ -2,7 +2,6 @@ use std::{path::Path, collections::HashMap};
 use futures::{Stream, TryStreamExt};
 use jomini::JominiDeserialize;
 use tokio::task::spawn_blocking;
-
 use crate::{data::read_to_string, Result, Str, utils::{ReadDirStream, FlattenOkIter}};
 
 pub type NamedCountryRank<'a> = (&'a str, &'a CountryRank);

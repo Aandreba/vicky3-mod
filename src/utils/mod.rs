@@ -1,35 +1,6 @@
-use std::{task::Poll, collections::HashMap};
+use std::{task::Poll};
 use futures::{Stream, Future, StreamExt, FutureExt, TryStream, TryStreamExt, TryFuture, TryFutureExt};
-use serde::de::Error;
 use tokio::fs::{ReadDir, DirEntry};
-use sealed::Sealed;
-use crate::{Str};
-
-mod sealed {
-    pub trait Sealed {}
-}
-
-pub trait GetStr<T>: Sealed {
-    fn get_str_value<'a> (&'a self, t: &str) -> Option<(&'a str, &'a T)>;
-
-    #[inline]
-    fn try_get_str_value<'a> (&'a self, t: &str) -> crate::Result<(&'a str, &'a T)> {
-        self.get_str_value(t)
-            .ok_or_else(|| jomini::DeserializeError::custom(format!("entry with name '{t}' not found")).into())
-    }
-}
-
-impl<T> GetStr<T> for HashMap<Str, T> {
-    #[inline]
-    fn get_str_value<'a> (&'a self, k: &str) -> Option<(&'a str, &'a T)> {
-        match self.get_key_value(k) {
-            Some((k, v)) => Some((k, v)),
-            None => None
-        }
-    }
-}
-
-impl<T> Sealed for HashMap<Str, T> {}
 
 #[derive(Debug)]
 #[repr(transparent)]

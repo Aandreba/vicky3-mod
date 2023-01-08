@@ -1,29 +1,39 @@
-use std::{path::{PathBuf, Path}, sync::atomic::AtomicBool};
-use eframe::{egui::{CentralPanel, Window}};
+use std::{path::{PathBuf, Path}, mem::MaybeUninit};
+use eframe::{egui::{CentralPanel, SidePanel, Window}};
 use rfd::FileDialog;
-use serde::{Serialize, Deserialize};
-use tokio::runtime::Runtime;
 use crate::{Main, mod_folder::ModFolder, runtime, data::Game};
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug)]
 #[non_exhaustive]
 pub struct Home {
-    pub game_path: Option<PathBuf>
+    pub game_path: Option<PathBuf>,
+    show_error: bool,
+    error_message: MaybeUninit<String>
 }
 
 impl Default for Home {
     #[inline]
     fn default() -> Self {
         Self {
-            game_path: None
+            game_path: None,
+            show_error: false,
+            error_message: MaybeUninit::uninit()
         }
     }
 }
 
 impl Home {
     #[inline]
-    pub fn update(&mut self, ctx: &eframe::egui::Context, frame: &mut eframe::Frame) -> Option<Main> {
+    pub fn update(&mut self, ctx: &eframe::egui::Context, _frame: &mut eframe::Frame) -> Option<Main> {
+        Window::new("Error").open(&mut self.show_error).show(ctx, |ui| unsafe {
+            ui.label(self.error_message.assume_init_ref());
+        });
+
         return CentralPanel::default().show(ctx, |ui| {
+            SidePanel::left("my_left_panel").show(ctx, |ui| {
+                ui.label("Hello World!");
+            });
+
             let game_path = ui.button("Select game data path");
             let open_game_data = ui.button("Open game data");
 
@@ -33,13 +43,24 @@ impl Home {
             }
 
             match (open_game_data.clicked(), &self.game_path) {
-                (true, Some(path)) => unsafe {
-                    runtime().block_on(Game::initialize(path));
-                    return Some(Main::Mod(ModFolder::open(path.clone())))
+                (true, Some(path)) => {
+                    let game = match runtime().block_on(Game::new(path)) {
+                        Ok(x) => x,
+                        Err(e) => {
+                            self.error_message.write(e.to_string());
+                            self.show_error = true;
+                            ctx.request_repaint();
+                            return None
+                        }
+                    };
+
+                    return Some(Main::Mod(ModFolder::open(game)))
                 },
 
                 (true, None) => {
-                    // todo alert
+                    self.error_message.write("No game path specified".to_string());
+                    self.show_error = true;
+                    ctx.request_repaint();
                 },
                 
                 _ => {}
@@ -55,7 +76,6 @@ impl Home {
         if let Some(path) = self.game_path.as_deref().and_then(Path::parent) {
             builder = builder.set_directory(path);
         }
-        
         self.game_path = builder.pick_folder();
         
     }

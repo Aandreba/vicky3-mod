@@ -15,123 +15,40 @@ pub mod religion;
 
 flat_mod! { color }
 
-use std::{path::{Path, PathBuf}, pin::Pin, collections::HashMap, marker::PhantomData};
-use country::CountryGame;
+use std::{path::{Path, PathBuf}, collections::HashMap};
+use country::GameCountry;
 use culture::Culture;
 use futures::{Stream, TryStreamExt, TryFutureExt};
+use into_string::IntoPathBuf;
 use itertools::Itertools;
 use religion::Religion;
-use sis::self_referencing;
-use crate::utils::FlattenOkIter;
-
+use crate::{utils::FlattenOkIter, Result};
 use crate::Str;
 
-#[cfg(debug_assertions)]
-static mut GAME: Option<Game> = None;
-#[cfg(not(debug_assertions))]
-static mut GAME: MaybeUninit<Game> = MaybeUninit::uninit();
-
-pin_project_lite::pin_project! {
-    #[derive(Debug)]
-    #[repr(transparent)]
-    pub struct Game {
-        #[pin]
-        inner: GameInner<'static>
-    }
+#[derive(Debug)]
+#[non_exhaustive]
+pub struct Game {
+    pub path: PathBuf,
+    pub common: PathBuf,
+    pub countries: GameCountry,
+    pub religions: HashMap<Str, Religion>,
+    pub cultures: HashMap<Str, Culture>
 }
 
 impl Game {
     #[inline]
-    pub async unsafe fn initialize<T: ?Sized + AsRef<Path>> (path: &'static T) {
-        let path = path.as_ref();
+    pub async fn new<P: IntoPathBuf> (path: P) -> Result<Self> {
+        let path = path.into_path_buf();
         let common = path.join("common");
 
-        let (countries, religions) = futures::try_join! {
-            CountryGame::new_uninit(&common),
-            TryFutureExt::and_then(Religion::from_common(&path, &common), TryStreamExt::try_collect::<HashMap<_, _>>)
-        }.unwrap();
+        let (countries, religions, cultures) = futures::try_join! {
+            GameCountry::from_common(&common),
+            Religion::from_common(&common).and_then(TryStreamExt::try_collect::<HashMap<_, _>>),
+            Culture::from_common(&common).and_then(TryStreamExt::try_collect::<HashMap<_, _>>)
+        }?;
 
-        let game = GameInner::_new_uninit(
-            path,
-            common,
-            religions,
-            countries
-        );
-
-        let this;
-        unsafe {
-            cfg_if::cfg_if! {
-                if #[cfg(debug_assertions)] {
-                    GAME = Some(Game { inner: game });
-                    this = Pin::static_mut(GAME.as_mut().unwrap_unchecked()).project();
-                } else {
-                    this = Pin::static_mut(
-                        GAME.write(Game { inner: game })
-                    ).project();
-                }
-            }
-        }
-
-        this.inner._try_initialize_async(
-            |common, religions| async move {
-                return Culture::from_common(common as &Path, religions)
-                    .await?
-                    .try_collect()
-                    .await
-            },
-
-            |countries: Pin<&'static mut CountryGame>, common, cultures| async move {
-                unsafe { countries.initialize_with_common(common as &Path, cultures).await? };
-                return Ok(PhantomData)
-            }
-        ).await.unwrap();
+        return Ok(Self { path, common, countries, religions, cultures })
     }
-
-    #[inline]
-    fn get () -> &'static Self {
-        unsafe {
-            cfg_if::cfg_if! {
-                if #[cfg(debug_assertions)] {
-                    return GAME.as_ref().unwrap()
-                } else {
-                    return GAME.assume_init_ref()
-                }
-            }
-        }
-    }
-
-    #[inline]
-    pub fn path () -> &'static Path {
-        &Self::get().inner.path
-    }
-    
-    #[inline]
-    pub fn common () -> &'static Path {
-        &Self::get().inner.common
-    }
-
-    #[inline]
-    pub fn countries () -> &'static CountryGame<'static> {
-        return &Self::get().inner.countries
-    }
-
-    #[inline]
-    pub fn religions () -> &'static HashMap<Str, Religion> {
-        return &Self::get().inner.religions
-    }
-}
-
-#[self_referencing]
-#[derive(Debug)]
-struct GameInner {
-    path: &'this Path,
-    common: PathBuf,
-    religions: HashMap<Str, Religion>,
-    countries: CountryGame<'this>,
-    #[borrows(common, religions)]
-    cultures: HashMap<Str, Culture<'this>>,
-    #[borrows(mut countries, common, cultures)]
-    _country_init: PhantomData<&'this mut ()>
 }
 
 #[inline]
@@ -159,31 +76,4 @@ pub(crate) fn stream_flat_map_ok<T, E, S, F, U> (stream: S, f: F) -> impl Stream
 {
     return FlattenOkIter::new(stream.map_ok(f))
     //return itertools::Itertools::map_ok(iter.into_iter(), f).flatten_ok();
-}
-
-#[cfg(feature = "nightly")]
-pub(crate) fn try_collect<T, E, C, I> (iter: I) -> ::core::result::Result<C, E> where
-    I: IntoIterator<Item = core::result::Result<T, E>>,
-    C: FromIterator<T>
-{
-    return iter.try_collect::<C>();
-}
-
-#[cfg(not(feature = "nightly"))]
-pub(crate) fn try_collect<T, E, C, I> (iter: I) -> ::core::result::Result<C, E> where
-    I: IntoIterator<Item = core::result::Result<T, E>>,
-    C: FromIterator<T>
-{
-    let mut iter = iter.into_iter();
-    let chunk = (&mut iter)
-        .take_while(|x| x.is_ok())
-        .map(|x| unsafe { core::result::Result::<T, E>::unwrap_unchecked(x) })
-        .collect::<C>();
-
-    return match iter.next() {
-        Some(Err(e)) => Err(e),
-        #[cfg(debug_assertions)]
-        Some(Ok(_)) => unreachable!(),
-        None => Ok(chunk)
-    }
 }

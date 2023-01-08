@@ -6,40 +6,9 @@ use crate::{Str, Result};
 use crate::utils::{ReadDirStream, FlattenOkIter};
 use super::{Color, read_to_string};
 
-pub type NamedReligion<'a> = (&'a str, &'a Religion);
-
 #[derive(Debug, Clone, PartialEq, JominiDeserialize)]
 #[non_exhaustive]
 pub struct Religion {
-    pub texture: Box<Path>,
-    // religion traits, different from other kinds of traits
-    // traits: Vec<Str>,
-    pub color: Color,
-    // taboos: Vec<Str>
-}
-
-impl Religion {
-    #[inline]
-    pub fn from_raw (parent: &Path, raw: RawReligion) -> Self {
-        return Self {
-            texture: parent.join(raw.texture).into_boxed_path(),
-            color: raw.color,
-        }
-    }
-
-    #[inline]
-    pub async fn from_common<'a> (parent: &'a Path, common: &Path) -> Result<impl 'a + Stream<Item = Result<(Str, Self)>>> {
-        return Ok(
-            RawReligion::from_common(common)
-                .await?
-                .map_ok(|(name, raw)| (name, Self::from_raw(parent, raw)))
-        )
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, JominiDeserialize)]
-#[non_exhaustive]
-pub struct RawReligion {
     pub texture: Box<Path>,
     // religion traits, different from other kinds of traits
     pub traits: Box<[Str]>,
@@ -48,7 +17,7 @@ pub struct RawReligion {
     pub taboos: Box<[Str]>
 }
 
-impl RawReligion {
+impl Religion {
     #[inline]
     pub async fn from_path (path: impl AsRef<Path>) -> Result<HashMap<Str, Self>> {
         let data = read_to_string(path).await?;

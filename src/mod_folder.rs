@@ -1,19 +1,14 @@
-use std::path::PathBuf;
 use eframe::egui::*;
-use crate::Main;
+use crate::{Main, data::Game};
 
 pub struct ModFolder {
-    path: PathBuf,
-    write: bool    
+    game: Game
 }
 
 impl ModFolder {
     #[inline]
-    pub fn open (path: PathBuf) -> Self {
-        return Self {
-            path,
-            write: false,
-        }
+    pub fn open (game: Game) -> Self {
+        return Self { game }
     }
 
     #[inline]

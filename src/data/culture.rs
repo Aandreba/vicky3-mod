@@ -3,56 +3,12 @@ use futures::{Stream, TryStreamExt};
 use jomini::JominiDeserialize;
 use tokio::task::spawn_blocking;
 use crate::Result;
-use crate::utils::{ReadDirStream, FlattenOkIter, GetStr, stream_and_then};
-use super::{Color, Str, read_to_string, religion::{Religion, NamedReligion}};
-
-pub type CultureRef<'a> = &'a Culture<'a>;
-pub type NamedCulture<'a> = (&'a str, CultureRef<'a>);
-
-#[derive(Debug, Clone, PartialEq)]
-#[non_exhaustive]
-pub struct Culture<'a> {
-    pub color: Color,
-    pub religion: NamedReligion<'a>,
-    // pub traits: Vec<Str>,
-    pub male_common_first_names: Box<[Str]>,
-    pub female_common_first_names: Box<[Str]>,
-    pub noble_last_names: Box<[Str]>,
-    pub common_last_names: Box<[Str]>,
-    pub male_regal_first_names: Box<[Str]>,
-    pub female_regal_first_names: Box<[Str]>,
-    // pub graphics: Str,
-    // pub ethnicities: HashMap<u32, Str>
-}
-
-impl<'a> Culture<'a> {
-    #[inline]
-    pub fn from_raw (raw: RawCulture, religions: &'a HashMap<Str, Religion>) -> Result<Self> {
-        return Ok(Self {
-            color: raw.color,
-            religion: religions.try_get_str_value(&raw.religion)?,
-            male_common_first_names: raw.male_common_first_names,
-            female_common_first_names: raw.female_common_first_names,
-            noble_last_names: raw.noble_last_names,
-            common_last_names: raw.common_last_names,
-            male_regal_first_names: raw.male_regal_first_names,
-            female_regal_first_names: raw.female_regal_first_names,
-        })
-    }
-
-    #[inline]
-    pub async fn from_common (common: &Path, religions: &'a HashMap<Str, Religion>) -> Result<impl Stream<Item = Result<(Str, Culture<'a>)>>> {
-        let iter = RawCulture::from_common(common).await?;
-        return Ok(stream_and_then(
-            iter,
-            |(name, raw)| Ok((name, Self::from_raw(raw, religions)?)))
-        );
-    }
-}
+use crate::utils::{ReadDirStream, FlattenOkIter};
+use super::{Color, Str, read_to_string};
 
 #[derive(Debug, Clone, PartialEq, JominiDeserialize)]
 #[non_exhaustive]
-pub struct RawCulture {
+pub struct Culture {
     pub color: Color,
     pub religion: Str,
     #[jomini(default)]
@@ -73,7 +29,7 @@ pub struct RawCulture {
     pub ethnicities: HashMap<u32, Str>
 }
 
-impl RawCulture {
+impl Culture {
     #[inline]
     pub async fn from_path (path: impl AsRef<Path>) -> Result<HashMap<Str, Self>> {
         let data = read_to_string(path).await?;
