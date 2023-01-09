@@ -1,12 +1,13 @@
-use std::{path::{PathBuf, Path}, mem::MaybeUninit};
-use eframe::{egui::{CentralPanel, SidePanel, Window}};
+use std::{path::{Path}, mem::MaybeUninit};
+use eframe::{egui::{CentralPanel, SidePanel, Window, RichText, Color32}};
 use rfd::FileDialog;
-use crate::{Main, mod_folder::ModFolder, runtime, data::Game};
+use crate::{Main, runtime, data::Game, mod_folder::ModFolder};
 
 #[derive(Debug)]
 #[non_exhaustive]
 pub struct Home {
-    pub game_path: Option<PathBuf>,
+    init_game_path: bool,
+    pub game_path: String,
     show_error: bool,
     error_message: MaybeUninit<String>
 }
@@ -15,7 +16,8 @@ impl Default for Home {
     #[inline]
     fn default() -> Self {
         Self {
-            game_path: None,
+            init_game_path: true,
+            game_path: String::new(),
             show_error: false,
             error_message: MaybeUninit::uninit()
         }
@@ -24,8 +26,9 @@ impl Default for Home {
 
 impl Home {
     #[inline]
-    pub fn update(&mut self, ctx: &eframe::egui::Context, _frame: &mut eframe::Frame) -> Option<Main> {
-        Window::new("Error").open(&mut self.show_error).show(ctx, |ui| unsafe {
+    pub fn update(&mut self, ctx: &eframe::egui::Context, frame: &mut eframe::Frame) -> Option<Main> {    
+        self.init_game_path(ctx, frame);
+        Window::new(RichText::new("Error").background_color(Color32::DARK_RED)).open(&mut self.show_error).show(ctx, |ui| unsafe {
             ui.label(self.error_message.assume_init_ref());
         });
 
@@ -35,6 +38,7 @@ impl Home {
             });
 
             let game_path = ui.button("Select game data path");
+            ui.text_edit_singleline(&mut self.game_path);
             let open_game_data = ui.button("Open game data");
 
             if game_path.clicked() {
@@ -43,9 +47,22 @@ impl Home {
             }
 
             match (open_game_data.clicked(), &self.game_path) {
-                (true, Some(path)) => {
-                    let game = match runtime().block_on(Game::new(path)) {
-                        Ok(x) => x,
+                (true, x) if x.is_empty() => {
+                    self.error_message.write("No game path specified".to_string());
+                    self.show_error = true;
+                    ctx.request_repaint();
+                },
+
+                (true, path) => {
+                    let game = match runtime().block_on(Game::new(path as &str)) {
+                        Ok(game) => {
+                            if let Some(storage) = frame.storage_mut() {
+                                storage.set_string("game_path", path.clone());
+                                storage.flush();
+                            }
+                            game
+                        },
+
                         Err(e) => {
                             self.error_message.write(e.to_string());
                             self.show_error = true;
@@ -56,12 +73,6 @@ impl Home {
 
                     return Some(Main::Mod(ModFolder::open(game)))
                 },
-
-                (true, None) => {
-                    self.error_message.write("No game path specified".to_string());
-                    self.show_error = true;
-                    ctx.request_repaint();
-                },
                 
                 _ => {}
             }
@@ -71,12 +82,29 @@ impl Home {
     }
 
     #[inline]
-    pub fn select_game_path (&mut self) {
-        let mut builder = FileDialog::new();
-        if let Some(path) = self.game_path.as_deref().and_then(Path::parent) {
-            builder = builder.set_directory(path);
+    fn init_game_path (&mut self, ctx: &eframe::egui::Context, frame: &eframe::Frame) {
+        if self.init_game_path {
+            self.game_path = frame.storage()
+                .and_then(|stg| stg.get_string("game_path"))
+                .unwrap_or_default();
+            self.init_game_path = false;
+            ctx.request_repaint()
         }
-        self.game_path = builder.pick_folder();
-        
+    }
+
+    #[inline]
+    fn select_game_path (&mut self) {
+        let mut builder = FileDialog::new();
+        if !self.game_path.is_empty() {
+            let path = <str as AsRef<Path>>::as_ref(&self.game_path);
+            if path.is_dir() {
+                builder = builder.set_directory(path);
+            }
+        }
+
+        match builder.pick_folder().map(|x| x.into_os_string().into_string()) {
+            Some(Ok(x)) => self.game_path = x,
+            _ => {}
+        }
     }
 }

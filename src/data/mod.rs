@@ -15,7 +15,7 @@ pub mod religion;
 
 flat_mod! { color }
 
-use std::{path::{Path, PathBuf}, collections::HashMap};
+use std::{path::{Path, PathBuf}, collections::{HashMap, BTreeMap}};
 use country::GameCountry;
 use culture::Culture;
 use futures::{Stream, TryStreamExt, TryFutureExt};
@@ -31,8 +31,8 @@ pub struct Game {
     pub path: PathBuf,
     pub common: PathBuf,
     pub countries: GameCountry,
-    pub religions: HashMap<Str, Religion>,
-    pub cultures: HashMap<Str, Culture>
+    pub religions: BTreeMap<Str, Religion>,
+    pub cultures: BTreeMap<Str, Culture>
 }
 
 impl Game {
@@ -43,8 +43,8 @@ impl Game {
 
         let (countries, religions, cultures) = futures::try_join! {
             GameCountry::from_common(&common),
-            Religion::from_common(&common).and_then(TryStreamExt::try_collect::<HashMap<_, _>>),
-            Culture::from_common(&common).and_then(TryStreamExt::try_collect::<HashMap<_, _>>)
+            Religion::from_common(&common).and_then(TryStreamExt::try_collect::<BTreeMap<_, _>>),
+            Culture::from_common(&common).and_then(TryStreamExt::try_collect::<BTreeMap<_, _>>)
         }?;
 
         return Ok(Self { path, common, countries, religions, cultures })

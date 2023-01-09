@@ -6,7 +6,7 @@ pub(crate) mod utils;
 pub(crate) type Str = Box<str>;
 pub type Result<T> = ::core::result::Result<T, jomini::Error>;
 
-// /Users/aandreba/Library/Application Aupport/Steam
+// /Users/Aandreba/Library/Application Support/Steam/steamapps/common/Victoria 3/game
 
 use eframe::*;
 use home::Home;

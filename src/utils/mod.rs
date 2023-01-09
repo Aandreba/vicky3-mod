@@ -2,6 +2,8 @@ use std::{task::Poll};
 use futures::{Stream, Future, StreamExt, FutureExt, TryStream, TryStreamExt, TryFuture, TryFutureExt};
 use tokio::fs::{ReadDir, DirEntry};
 
+pub mod list;
+
 #[derive(Debug)]
 #[repr(transparent)]
 pub struct ReadDirStream {

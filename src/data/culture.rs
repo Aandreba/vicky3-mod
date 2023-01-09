@@ -3,6 +3,7 @@ use futures::{Stream, TryStreamExt};
 use jomini::JominiDeserialize;
 use tokio::task::spawn_blocking;
 use crate::Result;
+use crate::utils::list::ListEntry;
 use crate::utils::{ReadDirStream, FlattenOkIter};
 use super::{Color, Str, read_to_string};
 
@@ -50,5 +51,17 @@ impl Culture {
             });
 
         return Ok(FlattenOkIter::new(iter))
+    }
+}
+
+impl ListEntry for Culture {
+    #[inline]
+    fn color (&self) -> Option<eframe::epaint::Color32> {
+        Some(self.color.into())
+    }
+
+    #[inline]
+    fn render_info (&self, ui: &mut eframe::egui::Ui) {
+        ui.label(&self.religion as &str);
     }
 }

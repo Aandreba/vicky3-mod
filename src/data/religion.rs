@@ -1,8 +1,9 @@
 use std::{path::{Path}, collections::HashMap};
+use eframe::egui::{Ui, ScrollArea};
 use futures::{Stream, TryStreamExt};
 use jomini::JominiDeserialize;
 use tokio::task::spawn_blocking;
-use crate::{Str, Result};
+use crate::{Str, Result, utils::list::ListEntry};
 use crate::utils::{ReadDirStream, FlattenOkIter};
 use super::{Color, read_to_string};
 
@@ -38,5 +39,31 @@ impl Religion {
             });
 
         return Ok(FlattenOkIter::new(iter))
+    }
+}
+
+impl ListEntry for Religion {
+    #[inline]
+    fn color (&self) -> Option<eframe::epaint::Color32> {
+        Some(self.color.into())
+    }
+
+    #[inline]
+    fn render_info (&self, ui: &mut Ui) {
+        // Traits
+        ScrollArea::vertical().show(ui, |ui| {
+            for r#trait in self.traits.iter() {
+                ui.label(r#trait as &str);
+            }
+        });
+
+        // Taboos
+        ScrollArea::vertical().show(ui, |ui| {
+            for taboo in self.taboos.iter() {
+                ui.label(taboo as &str);
+            }
+        });
+
+        // todo texture
     }
 }
