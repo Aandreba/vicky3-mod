@@ -5,7 +5,7 @@ use jomini::JominiDeserialize;
 use tokio::task::spawn_blocking;
 use crate::{Result, utils::{list::ListEntry, attribute_list}};
 use crate::utils::{ReadDirStream, FlattenOkIter};
-use super::{Color, read_to_string};
+use super::{Color, read_to_string, Game};
 
 #[derive(Debug, Clone, PartialEq, JominiDeserialize)]
 #[non_exhaustive]
@@ -49,7 +49,7 @@ impl ListEntry for Religion {
     }
 
     #[inline]
-    fn render_info (&mut self, ui: &mut Ui) {
+    fn render_info (&mut self, ui: &mut Ui, game: &Game) {
         attribute_list(ui, "Traits", self.traits.iter_mut());
         attribute_list(ui, "Taboos", self.taboos.iter_mut());
         // todo texture

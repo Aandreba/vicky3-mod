@@ -1,8 +1,8 @@
-use std::{path::Path, collections::HashMap};
+use std::{path::Path, collections::{HashMap}, ops::Deref};
 use futures::{TryStreamExt, Stream};
 use serde::{Serialize, Deserialize};
 use tokio::task::spawn_blocking;
-use crate::{Result, utils::{ReadDirStream, FlattenOkIter, list::ListEntry, attribute_bool}, data::read_to_string};
+use crate::{Result, utils::{ReadDirStream, FlattenOkIter, list::ListEntry, attribute_bool, attribute_combo}, data::{read_to_string, Game}};
 
 #[derive(Debug, Serialize, Deserialize)]
 #[non_exhaustive]
@@ -25,7 +25,8 @@ impl ListEntry for CountryType {
         None
     }
 
-    fn render_info (&mut self, ui: &mut eframe::egui::Ui) {
+    fn render_info (&mut self, ui: &mut eframe::egui::Ui, game: &Game) {
+        let ranks = game.countries.ranks.borrow();
         attribute_bool(ui, "Recognized", &mut !self.is_recognized);
         attribute_bool(ui, "Prestige", &mut self.uses_prestige);
         attribute_bool(ui, "Events", &mut self.has_events);
@@ -33,7 +34,7 @@ impl ListEntry for CountryType {
         attribute_bool(ui, "Economy", &mut self.has_economy);
         attribute_bool(ui, "Politics", &mut self.has_politics);
         attribute_bool(ui, "Research", &mut self.can_research);
-        //attribute_combo(ui, "Default Rank", &mut self.default_rank, todo!(), ToString::to_string);
+        attribute_combo(ui, "Default Rank", &mut self.default_rank.deref(), ranks.keys().map(Deref::deref));
     }
 }
 

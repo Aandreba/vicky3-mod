@@ -1,5 +1,5 @@
 use std::{task::Poll, ops::{RangeInclusive}};
-use eframe::{egui::{Ui, RichText, Widget, Checkbox, DragValue, ComboBox}, emath::Numeric};
+use eframe::{egui::{Ui, RichText, Widget, Checkbox, DragValue, ComboBox, ScrollArea}, emath::Numeric};
 use futures::{Stream, Future, StreamExt, FutureExt, TryStream, TryStreamExt, TryFuture, TryFutureExt};
 use tokio::fs::{ReadDir, DirEntry};
 pub mod list;
@@ -35,17 +35,16 @@ pub fn attribute (ui: &mut Ui, key: impl Into<String>, value: &mut String) {
 }
 
 #[inline]
-pub fn attribute_combo<T: PartialEq, I: IntoIterator<Item = T>, F: Fn(&T) -> String> (ui: &mut Ui, key: impl Into<String>, current: &mut T, variants: I, name: F) {
+pub fn attribute_combo<'a, I: IntoIterator<Item = &'a str>> (ui: &mut Ui, key: impl Into<String>, current: &mut &'a str, variants: I) {
     ComboBox::from_label(RichText::new(key).strong()).show_ui(ui, |ui| {
-        for value in variants.into_iter() {
-            let name = name(&value);
-            ui.selectable_value(current, value, name);
+        for entry in variants.into_iter() {
+            ui.selectable_value(current, entry, entry);
         }
     });
 }
 
 #[inline]
-pub fn attribute_list<'a, I: IntoIterator<Item = &'a mut String>> (ui: &mut Ui, key: impl Into<String>, values: I) {
+pub fn attribute_list<'a, I: IntoIterator<Item = &'a mut String>> (ui: &mut Ui, key: impl Into<String>, values: I) {    
     ui.horizontal(|ui| {
         ui.label(RichText::new(key).strong());
         ui.vertical_centered(|ui| {

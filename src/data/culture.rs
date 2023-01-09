@@ -5,7 +5,7 @@ use tokio::task::spawn_blocking;
 use crate::Result;
 use crate::utils::list::ListEntry;
 use crate::utils::{ReadDirStream, FlattenOkIter, attribute, attribute_list};
-use super::{Color, read_to_string};
+use super::{Color, read_to_string, Game};
 
 #[derive(Debug, Clone, PartialEq, JominiDeserialize)]
 #[non_exhaustive]
@@ -61,7 +61,7 @@ impl ListEntry for Culture {
     }
 
     #[inline]
-    fn render_info (&mut self, ui: &mut eframe::egui::Ui) {
+    fn render_info (&mut self, ui: &mut eframe::egui::Ui, game: &Game) {
         attribute(ui, "Religion", &mut self.religion);
         attribute_list(ui, "Traits", self.traits.iter_mut());
         attribute(ui, "Graphics", &mut self.graphics);

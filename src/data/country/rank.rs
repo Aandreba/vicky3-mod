@@ -2,7 +2,7 @@ use std::{path::Path, collections::HashMap};
 use futures::{Stream, TryStreamExt};
 use jomini::JominiDeserialize;
 use tokio::task::spawn_blocking;
-use crate::{data::read_to_string, Result, utils::{ReadDirStream, FlattenOkIter, list::ListEntry}};
+use crate::{data::{read_to_string, Game}, Result, utils::{ReadDirStream, FlattenOkIter, list::ListEntry}};
 
 pub type NamedCountryRank<'a> = (&'a String, &'a CountryRank);
 
@@ -50,7 +50,7 @@ impl ListEntry for CountryRank {
     }
 
     #[inline]
-    fn render_info (&mut self, ui: &mut eframe::egui::Ui) {
+    fn render_info (&mut self, ui: &mut eframe::egui::Ui, game: &Game) {
         // todo
     }
 }

@@ -1,18 +1,7 @@
-use std::{collections::BTreeMap, pin::Pin, borrow};
+use std::{pin::Pin};
 use eframe::{egui::*, App};
-use named_fn::named_fn;
 use sis::self_referencing;
 use crate::{data::{Game, religion::{Religion}, culture::Culture, country::{CountryRank, CountryType}}, utils::list::List};
-
-#[named_fn]
-fn get_religions<'a> (game: &'a Game) -> &'a BTreeMap<String, Religion> {
-    return &game.religions
-}
-
-#[named_fn]
-fn get_cultures<'a> (game: &'a Game) -> &'a BTreeMap<String, Culture> {
-    return &game.cultures
-}
 
 pub struct ModFolderLists<'this> {
     religions: List<'this, Religion>,
@@ -26,10 +15,10 @@ impl<'this> ModFolderLists<'this> {
     pub fn new (game: Pin<&'this mut Game>) -> Self {
         let game = Pin::into_inner(game);
         return Self {
-            religions: List::new("Religions", &mut game.religions),
-            cultures: List::new("Cultures", &mut game.cultures),
-            country_ranks: List::new("Country Ranks", &mut game.countries.ranks),
-            country_types: List::new("Country Types", &mut game.countries.tys),
+            religions: List::new("Religions", &game.religions),
+            cultures: List::new("Cultures", &game.cultures),
+            country_ranks: List::new("Country Ranks", &game.countries.ranks),
+            country_types: List::new("Country Types", &game.countries.tys),
         }
     }
 }
@@ -55,18 +44,18 @@ impl<'this> App for ModFolder<'this> {
 
         // Misc
         Window::new("Religions").open(&mut self.show_religions).show(ctx, |ui| {
-            religions.update(ui);
+            religions.update(ui, &self.game);
         });
         Window::new("Cultures").open(&mut self.show_cultures).show(ctx, |ui| {
-            cultures.update(ui);
+            cultures.update(ui, &self.game);
         });
 
         // Country
         Window::new("Country Ranks").open(&mut self.show_country_ranks).show(ctx, |ui| {
-            country_ranks.update(ui);
+            country_ranks.update(ui, &self.game);
         });
         Window::new("Country Types").open(&mut self.show_country_types).show(ctx, |ui| {
-            country_types.update(ui);
+            country_types.update(ui, &self.game);
         });
         
         CentralPanel::default().show(ctx, |ui| {
@@ -74,11 +63,11 @@ impl<'this> App for ModFolder<'this> {
                 // Misc
                 ui.vertical(|ui| {
                     let cultures = ui.button(
-                        format!("Cultures ({})", game.cultures.len())
+                        format!("Cultures ({})", self.game.cultures.borrow().len())
                     );
                     
                     let religions = ui.button(
-                        format!("Religions ({})", game.religions.len())
+                        format!("Religions ({})", self.game.religions.borrow().len())
                     );
         
                     self.show_cultures ^= cultures.clicked();
@@ -88,11 +77,11 @@ impl<'this> App for ModFolder<'this> {
                 // Country info
                 ui.vertical(|ui| {
                     let ranks = ui.button(
-                        format!("Country Ranks ({})", game.countries.ranks.len())
+                        format!("Country Ranks ({})", game.countries.ranks.borrow().len())
                     );
                     
                     let tys = ui.button(
-                        format!("Country Types ({})", game.countries.tys.len())
+                        format!("Country Types ({})", game.countries.tys.borrow().len())
                     );
         
                     self.show_country_ranks ^= ranks.clicked();
