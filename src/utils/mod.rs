@@ -1,27 +1,58 @@
-use std::{task::Poll};
-use eframe::egui::{Ui, RichText, ScrollArea};
+use std::{task::Poll, ops::{RangeInclusive}};
+use eframe::{egui::{Ui, RichText, Widget, Checkbox, DragValue, ComboBox}, emath::Numeric};
 use futures::{Stream, Future, StreamExt, FutureExt, TryStream, TryStreamExt, TryFuture, TryFutureExt};
 use tokio::fs::{ReadDir, DirEntry};
-
 pub mod list;
 
 #[inline]
-pub fn attribute (ui: &mut Ui, key: impl Into<String>, value: &str) {
+pub fn attribute_bool (ui: &mut Ui, key: impl Into<String>, value: &mut bool) {
     ui.horizontal(|ui| {
-        ui.label(RichText::new(key).strong());
-        ui.label(value);
+        Checkbox::new(value, RichText::new(key).strong()).ui(ui);
     });
 }
 
 #[inline]
-pub fn attribute_list<'a, I: IntoIterator<Item = &'a str>> (ui: &mut Ui, key: &str, values: I) {
+pub fn attribute_num<Num: Numeric + ToString> (ui: &mut Ui, key: impl Into<String>, value: &mut Num, range: Option<RangeInclusive<Num>>) {
     ui.horizontal(|ui| {
         ui.label(RichText::new(key).strong());
-        ScrollArea::vertical().id_source(key).show(ui, |ui| {
-            for value in values.into_iter() {
-                ui.label(value);
+        ui.horizontal(|ui| {
+            ui.label(value.to_string());
+            let mut drag = DragValue::new(value);
+            if let Some(clamp_range) = range {
+                drag = drag.clamp_range(clamp_range);
             }
-        })
+            drag.ui(ui);
+        });
+    });
+}
+
+#[inline]
+pub fn attribute (ui: &mut Ui, key: impl Into<String>, value: &mut String) {
+    ui.horizontal(|ui| {
+        ui.label(RichText::new(key).strong());
+        ui.text_edit_singleline(value);
+    });
+}
+
+#[inline]
+pub fn attribute_combo<T: PartialEq, I: IntoIterator<Item = T>, F: Fn(&T) -> String> (ui: &mut Ui, key: impl Into<String>, current: &mut T, variants: I, name: F) {
+    ComboBox::from_label(RichText::new(key).strong()).show_ui(ui, |ui| {
+        for value in variants.into_iter() {
+            let name = name(&value);
+            ui.selectable_value(current, value, name);
+        }
+    });
+}
+
+#[inline]
+pub fn attribute_list<'a, I: IntoIterator<Item = &'a mut String>> (ui: &mut Ui, key: impl Into<String>, values: I) {
+    ui.horizontal(|ui| {
+        ui.label(RichText::new(key).strong());
+        ui.vertical_centered(|ui| {
+            for value in values.into_iter() {
+                ui.text_edit_singleline(value);
+            }
+        });
     });
 }
 

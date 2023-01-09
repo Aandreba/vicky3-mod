@@ -1,33 +1,51 @@
 use std::{path::Path, collections::HashMap};
 use futures::{TryStreamExt, Stream};
-use jomini::JominiDeserialize;
-use serde::Serialize;
+use serde::{Serialize, Deserialize};
 use tokio::task::spawn_blocking;
-use crate::{Str, Result, utils::{ReadDirStream, FlattenOkIter}, data::read_to_string};
+use crate::{Result, utils::{ReadDirStream, FlattenOkIter, list::ListEntry, attribute_bool}, data::read_to_string};
 
-#[derive(Debug, Serialize, JominiDeserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 #[non_exhaustive]
 pub struct CountryType {
     pub is_colonizable: bool,
-    pub is_unrecognized: bool,
+    #[serde(rename = "is_unrecognized", with = "recognized_serde")]
+    pub is_recognized: bool,
     pub uses_prestige: bool,
     pub has_events: bool,
     pub has_military: bool,
     pub has_economy: bool,
     pub has_politics: bool,
     pub can_research: bool,
-    pub default_rank: Str
+    pub default_rank: String
+}
+
+impl ListEntry for CountryType {
+    #[inline]
+    fn color (&self) -> Option<eframe::epaint::Color32> {
+        None
+    }
+
+    fn render_info (&mut self, ui: &mut eframe::egui::Ui) {
+        attribute_bool(ui, "Recognized", &mut !self.is_recognized);
+        attribute_bool(ui, "Prestige", &mut self.uses_prestige);
+        attribute_bool(ui, "Events", &mut self.has_events);
+        attribute_bool(ui, "Military", &mut self.has_military);
+        attribute_bool(ui, "Economy", &mut self.has_economy);
+        attribute_bool(ui, "Politics", &mut self.has_politics);
+        attribute_bool(ui, "Research", &mut self.can_research);
+        //attribute_combo(ui, "Default Rank", &mut self.default_rank, todo!(), ToString::to_string);
+    }
 }
 
 impl CountryType {
     #[inline]
-    pub async fn from_path (path: impl AsRef<Path>) -> Result<HashMap<Str, Self>> {
+    pub async fn from_path (path: impl AsRef<Path>) -> Result<HashMap<String, Self>> {
         let data = read_to_string(path).await?;
         return spawn_blocking(move || jomini::text::de::from_utf8_slice(data.as_bytes())).await.unwrap()
     }
 
     #[inline]
-    pub async fn from_common (common: &Path) -> Result<impl Stream<Item = Result<(Str, Self)>>> {
+    pub async fn from_common (common: &Path) -> Result<impl Stream<Item = Result<(String, Self)>>> {
         let path = common.join("country_types");
         let iter = ReadDirStream::new(tokio::fs::read_dir(path).await?)
             .map_err(<jomini::Error as From<std::io::Error>>::from)
@@ -43,21 +61,17 @@ impl CountryType {
     }
 }
 
-/*
+mod recognized_serde {
+    use std::ops::{Not};
+    use serde::*;
 
-decentralized = {
-	is_colonizable = yes	# yes/no: if a country is colonizable
-	is_unrecognized = yes	# yes/no: does non-colonial countries consider this an unrecognized country to be colonized (impacts certain AI decisions)
-	uses_prestige = no # yes/no: If no, always has a prestige of 0 and does not display a rank position
+    #[inline]
+    pub fn serialize<S> (this: &bool, serializer: S) -> Result<S::Ok, S::Error> where S: Serializer {
+        (!this).serialize(serializer)
+    }
 
-	has_events = no
-
-	has_military = yes
-	has_economy = no
-	has_politics = no
-	can_research = no
-	
-	default_rank = decentralized_power
+    #[inline]
+    pub fn deserialize<'de, D> (deserializer: D) -> Result<bool, D::Error> where D: Deserializer<'de> {
+        bool::deserialize(deserializer).map(Not::not)
+    }
 }
-
-*/

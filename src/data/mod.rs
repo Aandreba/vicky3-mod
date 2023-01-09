@@ -15,7 +15,7 @@ pub mod religion;
 
 flat_mod! { color }
 
-use std::{path::{Path, PathBuf}, collections::{HashMap, BTreeMap}};
+use std::{path::{Path, PathBuf}, collections::{BTreeMap}};
 use country::GameCountry;
 use culture::Culture;
 use futures::{Stream, TryStreamExt, TryFutureExt};
@@ -23,7 +23,6 @@ use into_string::IntoPathBuf;
 use itertools::Itertools;
 use religion::Religion;
 use crate::{utils::FlattenOkIter, Result};
-use crate::Str;
 
 #[derive(Debug)]
 #[non_exhaustive]
@@ -31,8 +30,8 @@ pub struct Game {
     pub path: PathBuf,
     pub common: PathBuf,
     pub countries: GameCountry,
-    pub religions: BTreeMap<Str, Religion>,
-    pub cultures: BTreeMap<Str, Culture>
+    pub religions: BTreeMap<String, Religion>,
+    pub cultures: BTreeMap<String, Culture>
 }
 
 impl Game {

@@ -24,14 +24,14 @@ impl Default for Home {
     }
 }
 
-impl Home {
-    pub fn update(&mut self, ctx: &eframe::egui::Context, frame: &mut eframe::Frame) -> Option<Main> {    
+impl App for Home {
+    fn update(&mut self, ctx: &eframe::egui::Context, frame: &mut eframe::Frame) {    
         self.init_game_path(ctx, frame);
         Window::new(RichText::new("Error").background_color(Color32::DARK_RED)).open(&mut self.show_error).show(ctx, |ui| unsafe {
             ui.label(self.error_message.assume_init_ref());
         });
 
-        return CentralPanel::default().show(ctx, |ui| {
+        CentralPanel::default().show(ctx, |ui| {
             SidePanel::left("my_left_panel").show(ctx, |ui| {
                 ui.label("Hello World!");
             });
@@ -42,7 +42,7 @@ impl Home {
 
             if game_path.clicked() {
                 self.select_game_path();
-                return None
+                return
             }
 
             match (open_game_data.clicked(), &self.game_path) {
@@ -53,7 +53,7 @@ impl Home {
                 },
 
                 (true, path) => {
-                    let game = match runtime().block_on(Game::new(path as &str)) {
+                    let game = match runtime().block_on(Game::new(path as &String)) {
                         Ok(game) => {
                             if let Some(storage) = frame.storage_mut() {
                                 storage.set_string("game_path", path.clone());
@@ -66,20 +66,22 @@ impl Home {
                             self.error_message.write(e.to_string());
                             self.show_error = true;
                             ctx.request_repaint();
-                            return None
+                            return
                         }
                     };
 
-                    return Some(Main::Mod(ModFolder::open(game)))
+                    GAME.set(Some(game));
+                    frame.close();
+                    return
                 },
                 
                 _ => {}
             }
-
-            return None
-        }).inner;
+        });
     }
+}
 
+impl Home {
     #[inline]
     fn init_game_path (&mut self, ctx: &eframe::egui::Context, frame: &eframe::Frame) {
         if self.init_game_path {
@@ -95,7 +97,7 @@ impl Home {
     fn select_game_path (&mut self) {
         let mut builder = FileDialog::new();
         if !self.game_path.is_empty() {
-            let path = <str as AsRef<Path>>::as_ref(&self.game_path);
+            let path = <String as AsRef<Path>>::as_ref(&self.game_path);
             if path.is_dir() {
                 builder = builder.set_directory(path);
             }
