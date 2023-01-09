@@ -1,7 +1,7 @@
 use std::{path::{Path}, mem::MaybeUninit};
 use eframe::{egui::{CentralPanel, SidePanel, Window, RichText, Color32}};
 use rfd::FileDialog;
-use crate::{Main, runtime, data::Game, mod_folder::ModFolder};
+use crate::{*, data::Game};
 
 #[derive(Debug)]
 #[non_exhaustive]
@@ -25,7 +25,6 @@ impl Default for Home {
 }
 
 impl Home {
-    #[inline]
     pub fn update(&mut self, ctx: &eframe::egui::Context, frame: &mut eframe::Frame) -> Option<Main> {    
         self.init_game_path(ctx, frame);
         Window::new(RichText::new("Error").background_color(Color32::DARK_RED)).open(&mut self.show_error).show(ctx, |ui| unsafe {

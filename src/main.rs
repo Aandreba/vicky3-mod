@@ -1,3 +1,5 @@
+#![feature(fn_traits, unboxed_closures)]
+
 pub mod data;
 pub mod home;
 pub mod mod_folder;
@@ -35,10 +37,10 @@ impl Default for Main {
 
 impl App for Main {
     #[inline]
-    fn update(&mut self, ctx: &egui::Context, frame: &mut Frame) {
+    fn update (&mut self, ctx: &egui::Context, frame: &mut Frame) {
         let value = match self {
-            Self::Home(home) => home.update(ctx, frame),
-            Self::Mod(r#mod) => r#mod.update(ctx, frame)
+            Main::Home(home) => home.update(ctx, frame),
+            Main::Mod(r#mod) => r#mod.update(ctx, frame)
         };
 
         if let Some(value) = value {

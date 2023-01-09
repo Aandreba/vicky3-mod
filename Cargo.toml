@@ -28,6 +28,7 @@ eframe = { version = "0.20.1", features = ["persistence"] }
 anyhow = "1.0.68"
 rfd = "0.10.0"
 camino = "1.1.2"
+named_fn = "0.2.1"
 
 [workspace]
 members = ["sis", "sis/sis_proc"]

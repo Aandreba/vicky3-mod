@@ -1,9 +1,9 @@
-use std::{path::{Path}, collections::HashMap};
-use eframe::egui::{Ui, ScrollArea};
+use std::{path::{Path}, collections::HashMap, ops::Deref};
+use eframe::egui::{Ui, ScrollArea, RichText};
 use futures::{Stream, TryStreamExt};
 use jomini::JominiDeserialize;
 use tokio::task::spawn_blocking;
-use crate::{Str, Result, utils::list::ListEntry};
+use crate::{Str, Result, utils::{list::ListEntry, attribute_list}};
 use crate::utils::{ReadDirStream, FlattenOkIter};
 use super::{Color, read_to_string};
 
@@ -50,20 +50,8 @@ impl ListEntry for Religion {
 
     #[inline]
     fn render_info (&self, ui: &mut Ui) {
-        // Traits
-        ScrollArea::vertical().show(ui, |ui| {
-            for r#trait in self.traits.iter() {
-                ui.label(r#trait as &str);
-            }
-        });
-
-        // Taboos
-        ScrollArea::vertical().show(ui, |ui| {
-            for taboo in self.taboos.iter() {
-                ui.label(taboo as &str);
-            }
-        });
-
+        attribute_list(ui, "Traits", self.traits.iter().map(Deref::deref));
+        attribute_list(ui, "Taboos", self.taboos.iter().map(Deref::deref));
         // todo texture
     }
 }

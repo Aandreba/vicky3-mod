@@ -1,8 +1,29 @@
 use std::{task::Poll};
+use eframe::egui::{Ui, RichText, ScrollArea};
 use futures::{Stream, Future, StreamExt, FutureExt, TryStream, TryStreamExt, TryFuture, TryFutureExt};
 use tokio::fs::{ReadDir, DirEntry};
 
 pub mod list;
+
+#[inline]
+pub fn attribute (ui: &mut Ui, key: impl Into<String>, value: &str) {
+    ui.horizontal(|ui| {
+        ui.label(RichText::new(key).strong());
+        ui.label(value);
+    });
+}
+
+#[inline]
+pub fn attribute_list<'a, I: IntoIterator<Item = &'a str>> (ui: &mut Ui, key: &str, values: I) {
+    ui.horizontal(|ui| {
+        ui.label(RichText::new(key).strong());
+        ScrollArea::vertical().id_source(key).show(ui, |ui| {
+            for value in values.into_iter() {
+                ui.label(value);
+            }
+        })
+    });
+}
 
 #[derive(Debug)]
 #[repr(transparent)]

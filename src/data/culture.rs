@@ -1,10 +1,11 @@
+use std::ops::Deref;
 use std::{collections::HashMap, path::Path};
 use futures::{Stream, TryStreamExt};
 use jomini::JominiDeserialize;
 use tokio::task::spawn_blocking;
 use crate::Result;
 use crate::utils::list::ListEntry;
-use crate::utils::{ReadDirStream, FlattenOkIter};
+use crate::utils::{ReadDirStream, FlattenOkIter, attribute, attribute_list};
 use super::{Color, Str, read_to_string};
 
 #[derive(Debug, Clone, PartialEq, JominiDeserialize)]
@@ -62,6 +63,8 @@ impl ListEntry for Culture {
 
     #[inline]
     fn render_info (&self, ui: &mut eframe::egui::Ui) {
-        ui.label(&self.religion as &str);
+        attribute(ui, "Religion", &self.religion);
+        attribute_list(ui, "Traits", self.traits.iter().map(Deref::deref));
+        attribute(ui, "Graphics", &self.graphics);
     }
 }
