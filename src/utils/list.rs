@@ -1,6 +1,7 @@
-use std::{collections::{BTreeMap}, fmt::Debug, cell::{RefCell}};
+use std::{collections::{BTreeMap}, fmt::Debug};
 use eframe::{epaint::{Color32}, egui::{SidePanel, ScrollArea, RichText, Ui, Id, Label, Sense, TextStyle}};
 use crate::data::Game;
+use super::refcell::RefCell;
 
 pub trait ListEntry {
     fn color (&self) -> Option<Color32>;
@@ -45,8 +46,8 @@ impl<'this, T: Debug + ListEntry> List<'this, T> {
 
         ui.vertical_centered(|ui| {
             if let Some((info, name)) = self.current.as_ref().and_then(|key| Some((items.get_mut(key)?, key))) {
-                let name = unsafe { &*name };
-                let info = unsafe { &mut *info };
+                let name = &*name;
+                let info = &mut *info;
     
                 let mut text = RichText::new(name.to_string());
                 if let Some(color) = info.color() {

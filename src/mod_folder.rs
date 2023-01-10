@@ -12,8 +12,7 @@ pub struct ModFolderLists<'this> {
 
 impl<'this> ModFolderLists<'this> {
     #[inline]
-    pub fn new (game: Pin<&'this mut Game>) -> Self {
-        let game = Pin::into_inner(game);
+    pub fn new (game: &'this Game) -> Self {
         return Self {
             religions: List::new("Religions", &game.religions),
             cultures: List::new("Cultures", &game.cultures),
@@ -31,43 +30,55 @@ pub struct ModFolder {
     show_religions: bool,
     show_country_ranks: bool,
     show_country_types: bool,
-    #[borrows(mut game)]
+    #[borrows(game)]
     lists: ModFolderLists<'this>
 }
 
 impl<'this> App for ModFolder<'this> {
     #[inline]
-    fn update(&mut self, ctx: &eframe::egui::Context, frame: &mut eframe::Frame) {
+    fn update(&mut self, ctx: &eframe::egui::Context, _frame: &mut eframe::Frame) {
         let game = unsafe { Pin::new_unchecked(&mut self.game) };
         let ModFolderLists { religions, cultures, country_ranks, country_types } = unsafe { self.lists.assume_init_mut() };
         let _pin = unsafe { Pin::new_unchecked(&mut self._pin) };
 
         // Misc
-        Window::new("Religions").open(&mut self.show_religions).show(ctx, |ui| {
-            religions.update(ui, &self.game);
-        });
-        Window::new("Cultures").open(&mut self.show_cultures).show(ctx, |ui| {
-            cultures.update(ui, &self.game);
-        });
+        Window::new("Religions")
+            .open(&mut self.show_religions)
+            .vscroll(true)
+            .show(ctx, |ui| {
+                religions.update(ui, &game);
+            });
+        Window::new("Cultures")
+            .open(&mut self.show_cultures)
+            .vscroll(true)
+            .show(ctx, |ui| {
+                cultures.update(ui, &game);
+            });
 
         // Country
-        Window::new("Country Ranks").open(&mut self.show_country_ranks).show(ctx, |ui| {
-            country_ranks.update(ui, &self.game);
-        });
-        Window::new("Country Types").open(&mut self.show_country_types).show(ctx, |ui| {
-            country_types.update(ui, &self.game);
-        });
+        Window::new("Country Ranks")
+            .open(&mut self.show_country_ranks)
+            .vscroll(true)
+            .show(ctx, |ui| {
+                country_ranks.update(ui, &game);
+            });
+        Window::new("Country Types")
+            .open(&mut self.show_country_types)
+            .vscroll(true)
+            .show(ctx, |ui| {
+                country_types.update(ui, &game);
+            });
         
         CentralPanel::default().show(ctx, |ui| {
             ui.horizontal(|ui| {
                 // Misc
                 ui.vertical(|ui| {
                     let cultures = ui.button(
-                        format!("Cultures ({})", self.game.cultures.borrow().len())
+                        format!("Cultures ({})", game.cultures.borrow().len())
                     );
                     
                     let religions = ui.button(
-                        format!("Religions ({})", self.game.religions.borrow().len())
+                        format!("Religions ({})", game.religions.borrow().len())
                     );
         
                     self.show_cultures ^= cultures.clicked();

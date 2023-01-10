@@ -30,6 +30,21 @@ pub struct Culture {
     pub ethnicities: HashMap<u32, String>
 }
 
+impl ListEntry for Culture {
+    #[inline]
+    fn color (&self) -> Option<eframe::epaint::Color32> {
+        Some(self.color.into())
+    }
+
+    #[inline]
+    fn render_info (&mut self, ui: &mut eframe::egui::Ui, game: &Game) {
+        self.color.render(ui);
+        attribute(ui, "Religion", &mut self.religion);
+        attribute_list(ui, "Traits", self.traits.iter_mut());
+        attribute(ui, "Graphics", &mut self.graphics);
+    }
+}
+
 impl Culture {
     #[inline]
     pub async fn from_path (path: impl AsRef<Path>) -> Result<HashMap<String, Self>> {
@@ -51,19 +66,5 @@ impl Culture {
             });
 
         return Ok(FlattenOkIter::new(iter))
-    }
-}
-
-impl ListEntry for Culture {
-    #[inline]
-    fn color (&self) -> Option<eframe::epaint::Color32> {
-        Some(self.color.into())
-    }
-
-    #[inline]
-    fn render_info (&mut self, ui: &mut eframe::egui::Ui, game: &Game) {
-        attribute(ui, "Religion", &mut self.religion);
-        attribute_list(ui, "Traits", self.traits.iter_mut());
-        attribute(ui, "Graphics", &mut self.graphics);
     }
 }

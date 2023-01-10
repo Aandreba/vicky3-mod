@@ -15,14 +15,14 @@ pub mod religion;
 
 flat_mod! { color }
 
-use std::{path::{Path, PathBuf}, collections::{BTreeMap}, cell::RefCell};
+use std::{path::{Path, PathBuf}, collections::{BTreeMap}};
 use country::GameCountry;
 use culture::Culture;
 use futures::{Stream, TryStreamExt, TryFutureExt};
 use into_string::IntoPathBuf;
 use itertools::Itertools;
 use religion::Religion;
-use crate::{utils::FlattenOkIter, Result};
+use crate::{utils::{FlattenOkIter, refcell::RefCell}, Result};
 
 #[derive(Debug)]
 #[non_exhaustive]

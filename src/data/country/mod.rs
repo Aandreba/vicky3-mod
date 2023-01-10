@@ -1,6 +1,6 @@
-use std::{collections::{BTreeMap}, path::Path, cell::RefCell};
+use std::{collections::{BTreeMap}, path::Path};
 use futures::{TryFutureExt, TryStreamExt};
-use crate::{Result};
+use crate::{Result, utils::refcell::RefCell};
 
 flat_mod! { def, ty, rank, tier }
 

@@ -1,8 +1,10 @@
 use std::{task::Poll, ops::{RangeInclusive}};
-use eframe::{egui::{Ui, RichText, Widget, Checkbox, DragValue, ComboBox, ScrollArea}, emath::Numeric};
+use eframe::{egui::{Ui, RichText, Widget, Checkbox, DragValue, ComboBox}, emath::Numeric};
 use futures::{Stream, Future, StreamExt, FutureExt, TryStream, TryStreamExt, TryFuture, TryFutureExt};
 use tokio::fs::{ReadDir, DirEntry};
+
 pub mod list;
+pub mod refcell;
 
 #[inline]
 pub fn attribute_bool (ui: &mut Ui, key: impl Into<String>, value: &mut bool) {
@@ -36,11 +38,13 @@ pub fn attribute (ui: &mut Ui, key: impl Into<String>, value: &mut String) {
 
 #[inline]
 pub fn attribute_combo<'a, I: IntoIterator<Item = &'a str>> (ui: &mut Ui, key: impl Into<String>, current: &mut &'a str, variants: I) {
-    ComboBox::from_label(RichText::new(key).strong()).show_ui(ui, |ui| {
-        for entry in variants.into_iter() {
-            ui.selectable_value(current, entry, entry);
-        }
-    });
+    ComboBox::from_label(RichText::new(key).strong())
+        .selected_text(*current)
+        .show_ui(ui, |ui| {
+            for entry in variants.into_iter() {
+                ui.selectable_value(current, entry, entry);
+            }
+        });
 }
 
 #[inline]
