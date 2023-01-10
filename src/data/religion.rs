@@ -5,7 +5,7 @@ use jomini::JominiDeserialize;
 use tokio::task::spawn_blocking;
 use crate::{Result, utils::{list::ListEntry, attribute_list}};
 use crate::utils::{ReadDirStream, FlattenOkIter};
-use super::{Color, read_to_string, Game};
+use super::{Color, read_to_string, Game, GamePaths};
 
 #[derive(Debug, Clone, PartialEq, JominiDeserialize)]
 #[non_exhaustive]
@@ -26,8 +26,8 @@ impl Religion {
     }
 
     #[inline]
-    pub async fn from_common (common: &Path) -> Result<impl Stream<Item = Result<(String, Self)>>> {
-        let path = common.join("religions");
+    pub async fn from_game (game: &GamePaths) -> Result<impl Stream<Item = Result<(String, Self)>>> {
+        let path = game.common().join("religions");
         let iter = ReadDirStream::new(tokio::fs::read_dir(path).await?)
             .map_err(<jomini::Error as From<std::io::Error>>::from)
             .try_filter_map(|x: tokio::fs::DirEntry| async move {

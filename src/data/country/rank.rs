@@ -2,7 +2,7 @@ use std::{path::Path, collections::HashMap};
 use futures::{Stream, TryStreamExt};
 use jomini::JominiDeserialize;
 use tokio::task::spawn_blocking;
-use crate::{data::{read_to_string, Game}, Result, utils::{ReadDirStream, FlattenOkIter, list::ListEntry}};
+use crate::{data::{read_to_string, Game, GamePaths}, Result, utils::{ReadDirStream, FlattenOkIter, list::ListEntry}};
 
 pub type NamedCountryRank<'a> = (&'a String, &'a CountryRank);
 
@@ -63,8 +63,8 @@ impl CountryRank {
     }
 
     #[inline]
-    pub async fn from_common (common: impl AsRef<Path>) -> Result<impl Stream<Item = Result<(String, Self)>>> {
-        let ranks = common.as_ref().join("country_ranks");
+    pub async fn from_game (game: &GamePaths) -> Result<impl Stream<Item = Result<(String, Self)>>> {
+        let ranks = game.common().join("country_ranks");
         let iter = ReadDirStream::new(tokio::fs::read_dir(ranks).await?)
             .map_err(<jomini::Error as From<std::io::Error>>::from)
             .try_filter_map(|x: tokio::fs::DirEntry| async move {

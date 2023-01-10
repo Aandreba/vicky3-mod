@@ -5,6 +5,7 @@ use tokio::fs::{ReadDir, DirEntry};
 
 pub mod list;
 pub mod refcell;
+pub mod storage;
 
 #[inline]
 pub fn attribute_bool (ui: &mut Ui, key: impl Into<String>, value: &mut bool) {
@@ -29,7 +30,7 @@ pub fn attribute_num<Num: Numeric + ToString> (ui: &mut Ui, key: impl Into<Strin
 }
 
 #[inline]
-pub fn attribute (ui: &mut Ui, key: impl Into<String>, value: &mut String) {
+pub fn attribute_text(ui: &mut Ui, key: impl Into<String>, value: &mut String) {
     ui.horizontal(|ui| {
         ui.label(RichText::new(key).strong());
         ui.text_edit_singleline(value);
@@ -37,12 +38,13 @@ pub fn attribute (ui: &mut Ui, key: impl Into<String>, value: &mut String) {
 }
 
 #[inline]
-pub fn attribute_combo<'a, I: IntoIterator<Item = &'a str>> (ui: &mut Ui, key: impl Into<String>, current: &mut &'a str, variants: I) {
+pub fn attribute_combo<'a, I: IntoIterator<Item = String>> (ui: &mut Ui, key: impl Into<String>, current: &mut String, variants: I) {
     ComboBox::from_label(RichText::new(key).strong())
-        .selected_text(*current)
+        .selected_text(current.clone())
         .show_ui(ui, |ui| {
             for entry in variants.into_iter() {
-                ui.selectable_value(current, entry, entry);
+                let text = RichText::new(entry.clone());
+                ui.selectable_value(current, entry, text);
             }
         });
 }

@@ -1,4 +1,4 @@
-#![feature(fn_traits, unboxed_closures, local_key_cell_methods)]
+#![feature(fn_traits, unboxed_closures, new_uninit, local_key_cell_methods)]
 
 pub mod data;
 pub mod home;

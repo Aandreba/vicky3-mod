@@ -1,6 +1,8 @@
-use std::{collections::{BTreeMap}, path::Path};
+use std::{collections::{BTreeMap}};
 use futures::{TryFutureExt, TryStreamExt};
 use crate::{Result, utils::refcell::RefCell};
+
+use super::GamePaths;
 
 flat_mod! { def, ty, rank, tier }
 
@@ -8,16 +10,17 @@ flat_mod! { def, ty, rank, tier }
 pub struct GameCountry {
     pub ranks: RefCell<BTreeMap<String, CountryRank>>,
     pub tys: RefCell<BTreeMap<String, CountryType>>,
-    pub definitions: RefCell<BTreeMap<String, CountryDefinition>>
+    pub definitions: RefCell<BTreeMap<String, CountryDefinition>>,
+    // todo history
 }
 
 impl GameCountry {
     #[inline]
-    pub async fn from_common (common: &Path) -> Result<Self> {
+    pub async fn from_game (game: &GamePaths) -> Result<Self> {
         let (ranks, tys, definitions) = futures::try_join! {
-            CountryRank::from_common(common).and_then(TryStreamExt::try_collect::<BTreeMap<_, _>>),
-            CountryType::from_common(common).and_then(TryStreamExt::try_collect::<BTreeMap<_, _>>),
-            CountryDefinition::from_common(common).and_then(TryStreamExt::try_collect::<BTreeMap<_, _>>)
+            CountryRank::from_game(game).and_then(TryStreamExt::try_collect::<BTreeMap<_, _>>),
+            CountryType::from_game(game).and_then(TryStreamExt::try_collect::<BTreeMap<_, _>>),
+            CountryDefinition::from_game(game).and_then(TryStreamExt::try_collect::<BTreeMap<_, _>>)
         }?;
 
         return Ok(Self {

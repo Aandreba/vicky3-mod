@@ -10,6 +10,7 @@ macro_rules! flat_mod {
 }
 
 pub mod country;
+pub mod state;
 pub mod culture;
 pub mod religion;
 
@@ -24,11 +25,42 @@ use itertools::Itertools;
 use religion::Religion;
 use crate::{utils::{FlattenOkIter, refcell::RefCell}, Result};
 
+#[derive(Debug, Clone, PartialEq)]
+pub struct GamePaths {
+    game: PathBuf,
+    common: once_cell::unsync::OnceCell<PathBuf>,
+    history: once_cell::unsync::OnceCell<PathBuf>
+}
+
+impl GamePaths {
+    pub fn new (game: impl IntoPathBuf) -> Self {
+        return Self {
+            game: game.into_path_buf(),
+            common: once_cell::unsync::OnceCell::new(),
+            history: once_cell::unsync::OnceCell::new(),
+        }
+    }
+
+    #[inline]
+    pub fn game (&self) -> &Path {
+        return &self.game
+    }
+
+    #[inline]
+    pub fn common (&self) -> &Path {
+        return self.common.get_or_init(|| self.game().join("common"))
+    }
+
+    #[inline]
+    pub fn history (&self) -> &Path {
+        return self.history.get_or_init(|| self.common().join("history"))
+    }
+}
+
 #[derive(Debug)]
 #[non_exhaustive]
 pub struct Game {
-    pub path: PathBuf,
-    pub common: PathBuf,
+    pub path: GamePaths,
     pub countries: GameCountry,
     pub religions: RefCell<BTreeMap<String, Religion>>,
     pub cultures: RefCell<BTreeMap<String, Culture>>
@@ -37,18 +69,15 @@ pub struct Game {
 impl Game {
     #[inline]
     pub async fn new<P: IntoPathBuf> (path: P) -> Result<Self> {
-        let path = path.into_path_buf();
-        let common = path.join("common");
-
+        let path = GamePaths::new(path);
         let (countries, religions, cultures) = futures::try_join! {
-            GameCountry::from_common(&common),
-            Religion::from_common(&common).and_then(TryStreamExt::try_collect::<BTreeMap<_, _>>),
-            Culture::from_common(&common).and_then(TryStreamExt::try_collect::<BTreeMap<_, _>>)
+            GameCountry::from_game(&path),
+            Religion::from_game(&path).and_then(TryStreamExt::try_collect::<BTreeMap<_, _>>),
+            Culture::from_game(&path).and_then(TryStreamExt::try_collect::<BTreeMap<_, _>>)
         }?;
 
         return Ok(Self {
             path,
-            common,
             countries,
             religions: RefCell::new(religions),
             cultures: RefCell::new(cultures)

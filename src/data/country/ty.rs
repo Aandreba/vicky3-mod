@@ -1,8 +1,8 @@
-use std::{path::Path, collections::{HashMap}, ops::Deref};
+use std::{path::Path, collections::{HashMap}};
 use futures::{TryStreamExt, Stream};
 use serde::{Serialize, Deserialize};
 use tokio::task::spawn_blocking;
-use crate::{Result, utils::{ReadDirStream, FlattenOkIter, list::ListEntry, attribute_bool, attribute_combo}, data::{read_to_string, Game}};
+use crate::{Result, utils::{ReadDirStream, FlattenOkIter, list::ListEntry, attribute_bool, attribute_combo}, data::{read_to_string, Game, GamePaths}};
 
 #[derive(Debug, Serialize, Deserialize)]
 #[non_exhaustive]
@@ -34,7 +34,7 @@ impl ListEntry for CountryType {
         attribute_bool(ui, "Economy", &mut self.has_economy);
         attribute_bool(ui, "Politics", &mut self.has_politics);
         attribute_bool(ui, "Research", &mut self.can_research);
-        attribute_combo(ui, "Default Rank", &mut self.default_rank.deref(), ranks.keys().map(Deref::deref));
+        attribute_combo(ui, "Default Rank", &mut self.default_rank, ranks.keys().cloned());
     }
 }
 
@@ -46,8 +46,8 @@ impl CountryType {
     }
 
     #[inline]
-    pub async fn from_common (common: &Path) -> Result<impl Stream<Item = Result<(String, Self)>>> {
-        let path = common.join("country_types");
+    pub async fn from_game (game: &GamePaths) -> Result<impl Stream<Item = Result<(String, Self)>>> {
+        let path = game.common().join("country_types");
         let iter = ReadDirStream::new(tokio::fs::read_dir(path).await?)
             .map_err(<jomini::Error as From<std::io::Error>>::from)
             .try_filter_map(|x: tokio::fs::DirEntry| async move {

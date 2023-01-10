@@ -3,7 +3,7 @@ use futures::{Stream, TryStreamExt};
 use jomini::JominiDeserialize;
 use tokio::task::spawn_blocking;
 use super::{CountryTier};
-use crate::{Result, utils::{ReadDirStream, FlattenOkIter}, data::{Color, read_to_string}};
+use crate::{Result, utils::{ReadDirStream, FlattenOkIter}, data::{Color, read_to_string, GamePaths}};
 
 #[derive(Debug, Clone, PartialEq, JominiDeserialize)]
 #[non_exhaustive]
@@ -25,8 +25,8 @@ impl CountryDefinition {
     }
 
     #[inline]
-    pub async fn from_common (common: &Path) -> Result<impl Stream<Item = Result<(String, Self)>>> {
-        let path = common.join("country_definitions");
+    pub async fn from_game (game: &GamePaths) -> Result<impl Stream<Item = Result<(String, Self)>>> {
+        let path = game.common().join("country_definitions");
         let iter = ReadDirStream::new(tokio::fs::read_dir(path).await?)
             .map_err(<jomini::Error as From<std::io::Error>>::from)
             .try_filter_map(|x: tokio::fs::DirEntry| async move {
