@@ -47,9 +47,12 @@ fn main() -> anyhow::Result<()> {
         Box::new(|_cc| Box::new(Home::default())),
     );
 
+    eprintln!("{:#?}", GAME.take().unwrap().states.defs.borrow().first_key_value());
+    return Ok(());
+
     // Open mod/game folder (ModFolder)
     if let Some(game) = GAME.take() {
-        let app_name = game.path.to_string_lossy().into_owned();
+        let app_name = game.path.game().to_string_lossy().into_owned();
         eframe::run_native(
             &app_name,
             options,

@@ -14,7 +14,7 @@ pub mod state;
 pub mod culture;
 pub mod religion;
 
-flat_mod! { color }
+flat_mod! { color, ident }
 
 use std::{path::{Path, PathBuf}, collections::{BTreeMap}};
 use country::GameCountry;
@@ -24,6 +24,7 @@ use into_string::IntoPathBuf;
 use itertools::Itertools;
 use religion::Religion;
 use crate::{utils::{FlattenOkIter, refcell::RefCell}, Result};
+use self::state::GameState;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct GamePaths {
@@ -62,6 +63,7 @@ impl GamePaths {
 pub struct Game {
     pub path: GamePaths,
     pub countries: GameCountry,
+    pub states: GameState,
     pub religions: RefCell<BTreeMap<String, Religion>>,
     pub cultures: RefCell<BTreeMap<String, Culture>>
 }
@@ -70,8 +72,9 @@ impl Game {
     #[inline]
     pub async fn new<P: IntoPathBuf> (path: P) -> Result<Self> {
         let path = GamePaths::new(path);
-        let (countries, religions, cultures) = futures::try_join! {
+        let (countries, states, religions, cultures) = futures::try_join! {
             GameCountry::from_game(&path),
+            GameState::from_game(&path),
             Religion::from_game(&path).and_then(TryStreamExt::try_collect::<BTreeMap<_, _>>),
             Culture::from_game(&path).and_then(TryStreamExt::try_collect::<BTreeMap<_, _>>)
         }?;
@@ -79,6 +82,7 @@ impl Game {
         return Ok(Self {
             path,
             countries,
+            states,
             religions: RefCell::new(religions),
             cultures: RefCell::new(cultures)
         })

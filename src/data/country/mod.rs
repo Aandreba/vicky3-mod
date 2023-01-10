@@ -1,8 +1,7 @@
 use std::{collections::{BTreeMap}};
 use futures::{TryFutureExt, TryStreamExt};
 use crate::{Result, utils::refcell::RefCell};
-
-use super::GamePaths;
+use super::{GamePaths, Ident};
 
 flat_mod! { def, ty, rank, tier }
 
@@ -10,7 +9,7 @@ flat_mod! { def, ty, rank, tier }
 pub struct GameCountry {
     pub ranks: RefCell<BTreeMap<String, CountryRank>>,
     pub tys: RefCell<BTreeMap<String, CountryType>>,
-    pub definitions: RefCell<BTreeMap<String, CountryDefinition>>,
+    pub definitions: RefCell<BTreeMap<Ident, CountryDefinition>>,
     // todo history
 }
 

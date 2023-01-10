@@ -7,6 +7,45 @@ pub mod list;
 pub mod refcell;
 pub mod storage;
 
+pub mod serde_vec_map {
+    use std::marker::PhantomData;
+    use serde::{Serializer, ser::SerializeMap, Serialize, Deserialize, Deserializer, de::Visitor};
+
+    #[inline]
+    pub fn serialize<K: Serialize, V: Serialize, S> (this: &Vec<(K, V)>, serializer: S) -> Result<(), S::Error> where S: Serializer {
+        let mut serializer = serializer.serialize_map(Some(this.len()))?;
+        for (key, value) in this {
+            serializer.serialize_entry(key, value)?;
+        }
+        return Ok(())
+    }
+
+    #[inline]
+    pub fn deserialize<'de, K: Deserialize<'de>, V: Deserialize<'de>, D> (deserializer: D) -> Result<Vec<(K, V)>, D::Error> where D: Deserializer<'de> {
+        struct LocalVisitor<K, V> (PhantomData<(K, V)>);
+        impl<'de, K, V> Visitor<'de> for LocalVisitor<K, V> where K: Deserialize<'de>, V: Deserialize<'de> {
+            type Value = Vec<(K, V)>;
+
+            #[inline]
+            fn expecting(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+                write!(f, "a map")                
+            }
+
+            #[inline]
+            fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error> where A: serde::de::MapAccess<'de>, {
+                let mut result = Vec::with_capacity(map.size_hint().unwrap_or_default());
+                while let Some(entry) = map.next_entry()? {
+                    result.push(entry);
+                }
+
+                return Ok(result)
+            }
+        }
+
+        return deserializer.deserialize_map(LocalVisitor(PhantomData))
+    }
+}
+
 #[inline]
 pub fn attribute_bool (ui: &mut Ui, key: impl Into<String>, value: &mut bool) {
     ui.horizontal(|ui| {

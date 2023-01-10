@@ -1,45 +1,51 @@
 use std::{path::Path};
 use futures::{Stream, TryStreamExt};
 use jomini::JominiDeserialize;
-use serde::{Serialize};
+use serde::{Serialize, Deserialize};
 use tokio::task::spawn_blocking;
-use crate::{Result, utils::{ReadDirStream, FlattenOkIter}, data::{read_to_string, GamePaths}};
+use crate::{Result, utils::{ReadDirStream, FlattenOkIter}, data::{read_to_string, GamePaths, Ident}};
 
 pub type NamedStateDefinition<'a> = (&'a String, &'a StateDefinition);
 
 #[derive(Debug, Clone, PartialEq, Serialize, JominiDeserialize)]
 pub struct StateCreation {
-    country: String,
-    owned_provinces: Vec<String>, // todo serde as hex nums
-    #[jomini(default)]
-    state_type: Option<String>
+    pub country: Ident,
+    pub owned_provinces: Vec<String>, // todo serde as hex nums
+    #[jomini(default, duplicated)]
+    pub state_type: Vec<Ident> // todo probably state traits
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, JominiDeserialize)]
+#[derive(Debug, Clone, PartialEq, JominiDeserialize)]
 pub struct StateDefinition {
     #[jomini(alias = "create_state", duplicated)]
-    states: Vec<StateCreation>,
+    pub states: Vec<StateCreation>,
     #[jomini(alias = "add_homeland", duplicated)]
-    homelands: Vec<String>
+    pub homelands: Vec<Ident>
 }
 
 impl StateDefinition {
     #[inline]
-    pub async fn from_path (path: impl AsRef<Path>) -> Result<Vec<(String, Self)>> {
+    pub async fn from_path (path: impl AsRef<Path>) -> Result<impl Iterator<Item = (Ident, Self)>> {
+        #[derive(Deserialize)]
+        struct States (
+            #[serde(deserialize_with = "crate::utils::serde_vec_map::deserialize")]
+            Vec<(Ident, StateDefinition)>
+        );
+
         #[derive(JominiDeserialize)]
         struct Inner {
             #[jomini(alias = "STATES", duplicated)]
-            states: Vec<(String, StateDefinition)>
+            states: Vec<States>
         }
 
         let data = read_to_string(path).await?;
         return spawn_blocking(move ||
-            jomini::text::de::from_utf8_slice::<Inner>(data.as_bytes()).map(|x| x.states)
+            jomini::text::de::from_utf8_slice::<Inner>(data.as_bytes()).map(|x| x.states.into_iter().flat_map(|x| x.0))
         ).await.unwrap()
     }
 
     #[inline]
-    pub async fn from_game (game: &GamePaths) -> Result<impl Stream<Item = Result<(String, Self)>>> {
+    pub async fn from_game (game: &GamePaths) -> Result<impl Stream<Item = Result<(Ident, Self)>>> {
         let path = game.history().join("states");
         let iter = ReadDirStream::new(tokio::fs::read_dir(path).await?)
             .map_err(<jomini::Error as From<std::io::Error>>::from)

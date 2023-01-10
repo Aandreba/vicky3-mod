@@ -1,4 +1,4 @@
-use std::{path::{Path}, collections::HashMap, ops::Deref};
+use std::{path::{Path}, collections::HashMap};
 use eframe::egui::{Ui};
 use futures::{Stream, TryStreamExt};
 use jomini::JominiDeserialize;

@@ -1,13 +1,14 @@
 use std::{collections::BTreeMap};
 use crate::{utils::refcell::RefCell, Result};
-use super::GamePaths;
+use super::{GamePaths, Ident};
 use futures::stream::TryStreamExt;
 use futures::TryFutureExt;
 
 flat_mod! { def }
 
+#[derive(Debug)]
 pub struct GameState {
-    pub defs: RefCell<BTreeMap<String, StateDefinition>>
+    pub defs: RefCell<BTreeMap<Ident, StateDefinition>>
 }
 
 impl GameState {
