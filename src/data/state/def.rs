@@ -8,7 +8,7 @@ use crate::{Result, utils::{ReadDirStream, FlattenOkIter}, data::{read_to_string
 pub type NamedStateDefinition<'a> = (&'a String, &'a StateDefinition);
 
 #[derive(Debug, Clone, PartialEq, Serialize, JominiDeserialize)]
-pub struct StateCreation {
+pub struct RegionDefinition {
     pub country: Ident,
     pub owned_provinces: Vec<String>, // todo serde as hex nums
     #[jomini(default, duplicated)]
@@ -18,7 +18,7 @@ pub struct StateCreation {
 #[derive(Debug, Clone, PartialEq, JominiDeserialize)]
 pub struct StateDefinition {
     #[jomini(alias = "create_state", duplicated)]
-    pub states: Vec<StateCreation>,
+    pub regions: Vec<RegionDefinition>,
     #[jomini(alias = "add_homeland", duplicated)]
     pub homelands: Vec<Ident>
 }
@@ -46,7 +46,7 @@ impl StateDefinition {
 
     #[inline]
     pub async fn from_game (game: &GamePaths) -> Result<impl Stream<Item = Result<(Ident, Self)>>> {
-        let path = game.history().join("states");
+        let path = game.history().join("pops");
         let iter = ReadDirStream::new(tokio::fs::read_dir(path).await?)
             .map_err(<jomini::Error as From<std::io::Error>>::from)
             .try_filter_map(|x: tokio::fs::DirEntry| async move {

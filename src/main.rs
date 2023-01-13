@@ -1,8 +1,9 @@
-#![feature(fn_traits, unboxed_closures, new_uninit, local_key_cell_methods)]
+#![feature(fn_traits, unboxed_closures, vec_into_raw_parts, new_uninit, local_key_cell_methods)]
 
 pub mod data;
 pub mod home;
 pub mod mod_folder;
+pub mod states;
 pub(crate) mod utils;
 
 pub type Result<T> = ::core::result::Result<T, jomini::Error>;
@@ -29,6 +30,8 @@ cfg_if::cfg_if! {
 }
 
 fn main() -> anyhow::Result<()> {
+    use crate::utils::window::Window;
+
     // Initialize Tokio runtime
     let builder = tokio::runtime::Builder::new_multi_thread()
         .enable_all()
@@ -47,9 +50,6 @@ fn main() -> anyhow::Result<()> {
         Box::new(|_cc| Box::new(Home::default())),
     );
 
-    eprintln!("{:#?}", GAME.take().unwrap().states.defs.borrow().first_key_value());
-    return Ok(());
-
     // Open mod/game folder (ModFolder)
     if let Some(game) = GAME.take() {
         let app_name = game.path.game().to_string_lossy().into_owned();
@@ -58,7 +58,7 @@ fn main() -> anyhow::Result<()> {
             options,
             Box::new(move |_cc| {
                 new_mod_folder! {
-                    { game, false, false, false, false, false },
+                    { game, false, false, false, false, false, false },
                     { ModFolderLists::new },
                     box result
                 }

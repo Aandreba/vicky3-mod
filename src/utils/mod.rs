@@ -6,18 +6,19 @@ use tokio::fs::{ReadDir, DirEntry};
 pub mod list;
 pub mod refcell;
 pub mod storage;
+pub mod window;
 
 pub mod serde_vec_map {
     use std::marker::PhantomData;
     use serde::{Serializer, ser::SerializeMap, Serialize, Deserialize, Deserializer, de::Visitor};
 
     #[inline]
-    pub fn serialize<K: Serialize, V: Serialize, S> (this: &Vec<(K, V)>, serializer: S) -> Result<(), S::Error> where S: Serializer {
+    pub fn serialize<K: Serialize, V: Serialize, S> (this: &Vec<(K, V)>, serializer: S) -> Result<S::Ok, S::Error> where S: Serializer {
         let mut serializer = serializer.serialize_map(Some(this.len()))?;
         for (key, value) in this {
             serializer.serialize_entry(key, value)?;
         }
-        return Ok(())
+        return serializer.end()
     }
 
     #[inline]
